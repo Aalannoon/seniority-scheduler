@@ -10,14 +10,12 @@ body { font-family: Arial, sans-serif; margin:20px; }
 h1,h2 { margin-top:30px; }
 input, select, button { padding:6px; margin:4px; }
 table { width:100%; border-collapse:collapse; margin-top:10px; }
-th, td { border:1px solid #ccc; padding:6px; vertical-align:top; text-align:center; }
+th, td { border:1px solid #ccc; padding:6px; text-align:center; vertical-align:top; }
 
-.parttime { background:#f3f3f3; }
-.vacation { background:#ffecec; }
-.warning { background:#ffe0b2; }
+tr.employee-row { border-top:3px solid #333; }
 
-.cell { min-height:60px; }
-.shift { margin:4px 0; padding:4px; border-radius:4px; font-size:12px; }
+.cell { min-height:70px; }
+.shift { padding:6px; border-radius:4px; font-size:12px; }
 
 .h4 { background:#7cfc9a; }
 .h5 { background:#b6f5c2; }
@@ -26,14 +24,9 @@ th, td { border:1px solid #ccc; padding:6px; vertical-align:top; text-align:cent
 .h8 { background:#fff176; }
 .ot { background:#c084fc; color:#fff; }
 
-.modal {
-  display:none; position:fixed; inset:0;
-  background:rgba(0,0,0,.4);
-  align-items:center; justify-content:center;
-}
-.modal-content {
-  background:#fff; padding:20px; width:340px;
-}
+.parttime { background:#f3f3f3; }
+.vacation { background:#ffecec; }
+.warning { background:#ffe0b2; }
 </style>
 </head>
 
@@ -65,12 +58,13 @@ th, td { border:1px solid #ccc; padding:6px; vertical-align:top; text-align:cent
 </table>
 
 <!-- EVENTS -->
-<h2>Events</h2>
+<h2>Events (Manager View)</h2>
 <input id="eventName" placeholder="Event name">
 <input type="date" id="eventDate">
 <input type="time" id="eventStart">
 <input type="time" id="eventEnd">
 <input type="number" id="eventGuests" placeholder="Guests">
+
 <select id="eventType">
   <option value="seated">Seated Dinner</option>
   <option value="buffet">Buffet</option>
@@ -78,6 +72,7 @@ th, td { border:1px solid #ccc; padding:6px; vertical-align:top; text-align:cent
   <option value="wedding">Wedding / Formal</option>
   <option value="conference">Conference</option>
 </select>
+
 <input type="number" id="eventServers" placeholder="Servers (override)">
 <button onclick="addEvent()">Add Event</button>
 
@@ -94,9 +89,8 @@ th, td { border:1px solid #ccc; padding:6px; vertical-align:top; text-align:cent
 <!-- SCHEDULE -->
 <h2 id="weekHeader">Weekly Schedule</h2>
 <button onclick="generateSchedule()">Generate Schedule</button>
-<button onclick="exportCSV()">Export CSV</button>
 
-<table id="scheduleGrid">
+<table>
 <thead>
 <tr id="dayHeader"></tr>
 </thead>
@@ -122,6 +116,7 @@ function reorderSeniority(){
 }
 
 function addEmployee(){
+  if(!empName.value) return;
   employees.push({name:empName.value,type:empType.value,pref:empPref.value,vacation:false});
   reorderSeniority(); saveAll(); renderEmployees(); empName.value="";
 }
@@ -130,8 +125,8 @@ function renderEmployees(){
   employeeTable.innerHTML="";
   employees.forEach(e=>{
     const tr=document.createElement("tr");
-    if(e.vacation) tr.classList.add("vacation");
     if(e.type==="part") tr.classList.add("parttime");
+    if(e.vacation) tr.classList.add("vacation");
     tr.innerHTML=`
       <td>${e.seniority}</td>
       <td>${e.name}</td>
@@ -183,21 +178,26 @@ function hoursBetween(a,b){
   return (new Date("1970-01-01T"+b)-new Date("1970-01-01T"+a))/36e5;
 }
 
+function paidHours(scheduled){
+  if(scheduled<=4) return scheduled;
+  return scheduled-0.5;
+}
+
 function hourClass(h){
   if(h>8) return "ot";
   return "h"+Math.round(h);
 }
 
-function getMonday(d){
-  const date=new Date(d);
-  const day=date.getDay();
-  const diff=date.getDate()-(day===0?6:day-1);
-  return new Date(date.setDate(diff));
+function getMonday(dateStr){
+  const d=new Date(dateStr);
+  const day=d.getDay();
+  const diff=d.getDate()-(day===0?6:day-1);
+  return new Date(d.setDate(diff));
 }
 
 function generateSchedule(){
   scheduleBody.innerHTML="";
-  dayHeader.innerHTML="<th>Event</th>";
+  dayHeader.innerHTML="<th>Employee</th>";
 
   if(events.length===0) return;
 
@@ -213,38 +213,42 @@ function generateSchedule(){
 
   weekHeader.innerText = monday.toLocaleDateString("en",{month:"long",year:"numeric"});
 
-  events.forEach(ev=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${ev.name}<br>${ev.start}-${ev.end}</td>`;
-    days.forEach(d=>{
-      const cell=document.createElement("td");
-      cell.className="cell";
-      if(ev.date===d.toISOString().split("T")[0]){
-        const hours=hoursBetween(ev.start,ev.end);
-        const pool=employees.filter(e=>!e.vacation).sort((a,b)=>a.seniority-b.seniority);
-        for(let i=0;i<ev.servers && i<pool.length;i++){
-          const div=document.createElement("div");
-          div.className=`shift ${hourClass(hours)}`;
-          div.innerText=`${pool[i].name} (${hours}h)`;
-          cell.appendChild(div);
-        }
-      }
-      tr.appendChild(cell);
-    });
-    scheduleBody.appendChild(tr);
-  });
-}
+  employees
+    .filter(e=>!e.vacation)
+    .sort((a,b)=>a.seniority-b.seniority)
+    .forEach(emp=>{
+      const tr=document.createElement("tr");
+      tr.classList.add("employee-row");
+      tr.innerHTML=`<td><strong>${emp.name}</strong></td>`;
 
-function exportCSV(){
-  let rows=[["Event","Mon","Tue","Wed","Thu","Fri","Sat","Sun"]];
-  document.querySelectorAll("#scheduleBody tr").forEach(tr=>{
-    rows.push([...tr.children].map(td=>td.innerText.replace(/\n/g," | ")));
-  });
-  let csv=rows.map(r=>r.join(",")).join("\n");
-  let a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([csv]));
-  a.download="schedule.csv";
-  a.click();
+      days.forEach(day=>{
+        const cell=document.createElement("td");
+        cell.className="cell";
+
+        const dayStr=day.toISOString().split("T")[0];
+        const empEvents=events.filter(ev=>ev.date===dayStr);
+
+        if(empEvents.length){
+          const ev=empEvents[0]; // one shift per day rule
+          const scheduled=hoursBetween(ev.start,ev.end);
+          const paid=paidHours(scheduled);
+
+          const div=document.createElement("div");
+          div.className=`shift ${hourClass(paid)}`;
+          div.innerHTML=`
+            ${ev.start} – ${ev.end}<br>
+            ${paid}h
+          `;
+          cell.appendChild(div);
+        } else {
+          cell.innerHTML="—";
+        }
+
+        tr.appendChild(cell);
+      });
+
+      scheduleBody.appendChild(tr);
+    });
 }
 
 renderEmployees();
