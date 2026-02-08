@@ -25,6 +25,7 @@ input, select, button {
 .list { border-top:1px solid #ddd; margin-top:10px; }
 .item { padding:6px 0; border-bottom:1px solid #ddd; }
 .small { font-size:0.9em; color:#555; }
+.vacation { color:#c0392b; font-weight:bold; }
 </style>
 </head>
 
@@ -37,6 +38,7 @@ input, select, button {
 <nav>
   <button class="active" onclick="showTab('employees')">Employees</button>
   <button onclick="showTab('events')">Events</button>
+  <button onclick="showTab('vacations')">Vacations</button>
   <button onclick="showTab('schedule')">Schedule</button>
 </nav>
 
@@ -85,6 +87,20 @@ input, select, button {
   </div>
 </section>
 
+<section id="vacations">
+  <div class="card">
+    <h3>Add Vacation</h3>
+    <select id="vacEmp"></select>
+    <input id="vacDate" type="date">
+    <button onclick="addVacation()">Add Vacation</button>
+  </div>
+
+  <div class="card">
+    <h3>Vacation List</h3>
+    <div id="vacationList" class="list"></div>
+  </div>
+</section>
+
 <section id="schedule">
   <div class="card">
     <h3>Generate Schedule</h3>
@@ -96,10 +112,12 @@ input, select, button {
 <script>
 let employees = JSON.parse(localStorage.getItem("employees")) || [];
 let events = JSON.parse(localStorage.getItem("events")) || [];
+let vacations = JSON.parse(localStorage.getItem("vacations")) || [];
 
 function save() {
   localStorage.setItem("employees", JSON.stringify(employees));
   localStorage.setItem("events", JSON.stringify(events));
+  localStorage.setItem("vacations", JSON.stringify(vacations));
 }
 
 function showTab(id) {
@@ -128,6 +146,7 @@ function addEmployee() {
 
   save();
   renderEmployees();
+  renderVacationEmployees();
 }
 
 function renderEmployees() {
@@ -165,15 +184,42 @@ function renderEvents() {
   ).join("");
 }
 
+/* VACATIONS */
+
+function renderVacationEmployees() {
+  vacEmp.innerHTML = employees.map(e =>
+    `<option value="${e.name}">${e.name}</option>`
+  ).join("");
+}
+
+function addVacation() {
+  if (!vacEmp.value || !vacDate.value) return;
+  vacations.push({ name: vacEmp.value, date: vacDate.value });
+  save();
+  renderVacations();
+}
+
+function renderVacations() {
+  vacationList.innerHTML = vacations.map(v =>
+    `<div class="item vacation">
+      ${v.name} — ${v.date}
+    </div>`
+  ).join("");
+}
+
 /* SCHEDULER */
 
 function generateSchedule() {
   let output = "";
 
-  let sortedEmployees = [...employees];
-
   events.forEach(ev => {
     output += `<h4>${ev.name} (${ev.date})</h4>`;
+
+    let unavailable = vacations
+      .filter(v => v.date === ev.date)
+      .map(v => v.name);
+
+    let availableEmployees = employees.filter(e => !unavailable.includes(e.name));
 
     let blocks = [
       { label:"Setup", need:ev.setup },
@@ -187,7 +233,7 @@ function generateSchedule() {
       output += `<strong>${b.label}</strong><ul>`;
       let assigned = 0;
 
-      for (let e of sortedEmployees) {
+      for (let e of availableEmployees) {
         if (assigned >= b.need) break;
         output += `<li>${e.name}</li>`;
         assigned++;
@@ -199,6 +245,10 @@ function generateSchedule() {
 
       output += `</ul>`;
     });
+
+    if (unavailable.length) {
+      output += `<div class="vacation">On vacation: ${unavailable.join(", ")}</div>`;
+    }
   });
 
   scheduleOutput.innerHTML = output;
@@ -206,6 +256,8 @@ function generateSchedule() {
 
 renderEmployees();
 renderEvents();
+renderVacations();
+renderVacationEmployees();
 </script>
 
 </body>
