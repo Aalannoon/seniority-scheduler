@@ -1,27 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Seniority Scheduler</title>
+
 <style>
-body { font-family: Arial, sans-serif; margin:0; background:#f5f5f5; }
-header { background:#222; color:#fff; padding:10px; text-align:center; }
+body { font-family: Arial, sans-serif; margin:0; background:#f4f4f4; }
+header { background:#222; color:#fff; padding:12px; text-align:center; }
 nav { display:flex; background:#333; }
 nav button {
-  flex:1; padding:12px; border:none; background:#333; color:#fff;
+  flex:1; padding:12px; background:#333; color:#fff; border:none;
 }
 nav button.active { background:#555; }
 section { display:none; padding:15px; }
 section.active { display:block; }
-.card { background:#fff; padding:15px; margin-bottom:10px; border-radius:6px; }
+.card {
+  background:#fff; padding:15px; margin-bottom:12px;
+  border-radius:6px;
+}
 input, select, button {
   width:100%; padding:8px; margin-top:6px;
 }
-.list-item { border-bottom:1px solid #ddd; padding:6px 0; }
+.list { border-top:1px solid #ddd; margin-top:10px; }
+.item { padding:6px 0; border-bottom:1px solid #ddd; }
 .small { font-size:0.9em; color:#555; }
 </style>
 </head>
+
 <body>
 
 <header>
@@ -29,21 +35,20 @@ input, select, button {
 </header>
 
 <nav>
-  <button onclick="showTab('employees')" class="active">Employees</button>
+  <button class="active" onclick="showTab('employees')">Employees</button>
   <button onclick="showTab('events')">Events</button>
-  <button onclick="showTab('vacations')">Vacations</button>
   <button onclick="showTab('schedule')">Schedule</button>
 </nav>
 
 <section id="employees" class="active">
   <div class="card">
     <h3>Add Employee</h3>
-    <input id="empName" placeholder="Name"/>
+    <input id="empName" placeholder="Name">
     <select id="empType">
       <option value="full">Full-Time</option>
       <option value="part">Part-Time</option>
     </select>
-    <input id="empSeniority" type="number" placeholder="Seniority (1 = highest)"/>
+    <input id="empSeniority" type="number" placeholder="Seniority (1 = highest)">
     <select id="empPref">
       <option>Morning</option>
       <option>Midday</option>
@@ -51,85 +56,90 @@ input, select, button {
     </select>
     <button onclick="addEmployee()">Add Employee</button>
   </div>
+
   <div class="card">
     <h3>Employees</h3>
-    <div id="employeeList"></div>
+    <div id="employeeList" class="list"></div>
   </div>
 </section>
 
 <section id="events">
   <div class="card">
     <h3>Add Event</h3>
-    <input id="eventName" placeholder="Event Name"/>
-    <input id="eventDate" type="date"/>
-    <input id="eventStart" type="time"/>
-    <input id="eventEnd" type="time"/>
-    <input id="eventSize" type="number" placeholder="Guests (optional)"/>
+    <input id="eventName" placeholder="Event Name">
+    <input id="eventDate" type="date">
+    <input id="eventStart" type="time">
+    <input id="eventEnd" type="time">
+
+    <h4>Servers Needed</h4>
+    <input id="needSetup" type="number" placeholder="Setup servers">
+    <input id="needEvent" type="number" placeholder="Event servers">
+    <input id="needCleanup" type="number" placeholder="Cleanup servers">
+
     <button onclick="addEvent()">Add Event</button>
   </div>
+
   <div class="card">
     <h3>Events</h3>
-    <div id="eventList"></div>
-  </div>
-</section>
-
-<section id="vacations">
-  <div class="card">
-    <h3>Vacation (Coming Next)</h3>
-    <p class="small">Vacation & retirements will auto-adjust seniority.</p>
+    <div id="eventList" class="list"></div>
   </div>
 </section>
 
 <section id="schedule">
   <div class="card">
     <h3>Generate Schedule</h3>
-    <p class="small">Auto-scheduling logic will respect seniority & preferences.</p>
-    <button onclick="generateSchedule()">Generate Schedule</button>
+    <button onclick="generateSchedule()">Generate</button>
     <div id="scheduleOutput"></div>
   </div>
 </section>
 
 <script>
-let employees = JSON.parse(localStorage.getItem('employees')) || [];
-let events = JSON.parse(localStorage.getItem('events')) || [];
+let employees = JSON.parse(localStorage.getItem("employees")) || [];
+let events = JSON.parse(localStorage.getItem("events")) || [];
 
 function save() {
-  localStorage.setItem('employees', JSON.stringify(employees));
-  localStorage.setItem('events', JSON.stringify(events));
+  localStorage.setItem("employees", JSON.stringify(employees));
+  localStorage.setItem("events", JSON.stringify(events));
 }
 
 function showTab(id) {
-  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  event.target.classList.add('active');
+  document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  event.target.classList.add("active");
 }
 
+/* EMPLOYEES */
+
 function addEmployee() {
-  const e = {
+  if (!empName.value || !empSeniority.value) return;
+
+  employees.push({
     name: empName.value,
     type: empType.value,
     seniority: parseInt(empSeniority.value),
     pref: empPref.value
-  };
-  if (!e.name || !e.seniority) return;
-  employees.push(e);
+  });
+
   employees.sort((a,b) => {
-    if (a.type !== b.type) return a.type === 'full' ? -1 : 1;
+    if (a.type !== b.type) return a.type === "full" ? -1 : 1;
     return a.seniority - b.seniority;
   });
+
   save();
   renderEmployees();
 }
 
 function renderEmployees() {
   employeeList.innerHTML = employees.map(e =>
-    `<div class="list-item">
+    `<div class="item">
       <strong>${e.name}</strong> (${e.type})<br>
       Seniority: ${e.seniority} | Pref: ${e.pref}
     </div>`
-  ).join('');
+  ).join("");
 }
+
+/* EVENTS */
 
 function addEvent() {
   events.push({
@@ -137,25 +147,61 @@ function addEvent() {
     date: eventDate.value,
     start: eventStart.value,
     end: eventEnd.value,
-    size: eventSize.value
+    setup: parseInt(needSetup.value || 0),
+    main: parseInt(needEvent.value || 0),
+    cleanup: parseInt(needCleanup.value || 0)
   });
   save();
   renderEvents();
 }
 
 function renderEvents() {
-  eventList.innerHTML = events.map(ev =>
-    `<div class="list-item">
-      <strong>${ev.name}</strong><br>
-      ${ev.date} ${ev.start}–${ev.end}<br>
-      Guests: ${ev.size || 'n/a'}
+  eventList.innerHTML = events.map(e =>
+    `<div class="item">
+      <strong>${e.name}</strong><br>
+      ${e.date} ${e.start}–${e.end}<br>
+      Setup: ${e.setup}, Event: ${e.main}, Cleanup: ${e.cleanup}
     </div>`
-  ).join('');
+  ).join("");
 }
 
+/* SCHEDULER */
+
 function generateSchedule() {
-  scheduleOutput.innerHTML =
-    `<p class="small">Next step: automatic assignment engine.</p>`;
+  let output = "";
+
+  let sortedEmployees = [...employees];
+
+  events.forEach(ev => {
+    output += `<h4>${ev.name} (${ev.date})</h4>`;
+
+    let blocks = [
+      { label:"Setup", need:ev.setup },
+      { label:"Event", need:ev.main },
+      { label:"Cleanup", need:ev.cleanup }
+    ];
+
+    blocks.forEach(b => {
+      if (b.need === 0) return;
+
+      output += `<strong>${b.label}</strong><ul>`;
+      let assigned = 0;
+
+      for (let e of sortedEmployees) {
+        if (assigned >= b.need) break;
+        output += `<li>${e.name}</li>`;
+        assigned++;
+      }
+
+      if (assigned < b.need) {
+        output += `<li><em>Unfilled slots</em></li>`;
+      }
+
+      output += `</ul>`;
+    });
+  });
+
+  scheduleOutput.innerHTML = output;
 }
 
 renderEmployees();
