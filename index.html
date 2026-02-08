@@ -8,69 +8,69 @@
 </head>
 <body>
 
-  <h1>Fair Scheduler</h1>
+<h1>Fair Scheduler</h1>
 
-  <!-- EMPLOYEES -->
-  <section>
-    <h2>Employees</h2>
+<section>
+  <h2>Employees</h2>
 
-    <input id="empName" placeholder="Name" />
-    <input id="empSeniority" type="number" placeholder="Seniority" />
-    <input id="empMaxHours" type="number" placeholder="Max Hours" />
+  <input id="empName" placeholder="Name" />
+  <input id="empSeniority" type="number" placeholder="Seniority" />
+  <input id="empMaxHours" type="number" placeholder="Max Hours" />
 
-    <select id="empPreference">
-      <option value="morning">Morning</option>
-      <option value="midday">Midday</option>
-      <option value="night">Night</option>
-    </select>
+  <select id="empPreference">
+    <option value="morning">Morning</option>
+    <option value="midday">Midday</option>
+    <option value="night">Night</option>
+  </select>
 
-    <button onclick="addEmployee()">Add Employee</button>
+  <button onclick="addEmployee()">Add Employee</button>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Seniority</th>
-          <th>Max Hours</th>
-          <th>Preference</th>
-          <th>Assigned</th>
-        </tr>
-      </thead>
-      <tbody id="employeeTable"></tbody>
-    </table>
-  </section>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Seniority</th>
+        <th>Max</th>
+        <th>Pref</th>
+        <th>Assigned</th>
+      </tr>
+    </thead>
+    <tbody id="employeeTable"></tbody>
+  </table>
+</section>
 
-  <!-- EVENTS -->
-  <section>
-    <h2>Events</h2>
+<section>
+  <h2>Events</h2>
 
-    <input id="eventName" placeholder="Event Name" />
-    <input id="eventDate" type="date" />
-    <input id="eventStart" type="time" />
-    <input id="eventEnd" type="time" />
-    <input id="eventStaff" type="number" placeholder="Servers Needed" />
+  <input id="eventName" placeholder="Event Name" />
+  <input id="eventDate" type="date" />
+  <input id="eventStart" type="time" />
+  <input id="eventEnd" type="time" />
+  <input id="eventStaff" type="number" placeholder="Main Event Servers" />
 
-    <button onclick="addEvent()">Add Event</button>
+  <input id="setupHours" type="number" placeholder="Setup hours before" />
+  <input id="cleanupHours" type="number" placeholder="Cleanup hours after" />
+  <input id="nextDaySetup" type="number" placeholder="Next-day setup hours" />
 
-    <table>
-      <thead>
-        <tr>
-          <th>Event</th>
-          <th>Date</th>
-          <th>Time</th>
-          <th>Servers</th>
-        </tr>
-      </thead>
-      <tbody id="eventTable"></tbody>
-    </table>
-  </section>
+  <button onclick="addEvent()">Add Event</button>
 
-  <!-- SCHEDULE -->
-  <section>
-    <h2>Schedule</h2>
-    <button onclick="generateSchedule()">Generate Schedule</button>
-  </section>
+  <table>
+    <thead>
+      <tr>
+        <th>Event</th>
+        <th>Date</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody id="eventTable"></tbody>
+  </table>
+</section>
 
-  <script src="script.js"></script>
+<section>
+  <h2>Schedule</h2>
+  <button onclick="generateSchedule()">Generate Schedule</button>
+</section>
+
+<script src="script.js"></script>
 </body>
 </html>
