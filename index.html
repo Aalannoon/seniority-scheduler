@@ -55,8 +55,6 @@ th:last-child, td:last-child { border-right:none; }
 th { background:#4e9af1; color:#fff; }
 
 /* STATUS */
-.status-vacation { background:#7f8c8d; }
-.status-sick { background:#c0392b; }
 .status-retired { background:#555; opacity:0.6; }
 
 /* SHIFTS */
@@ -70,7 +68,6 @@ th { background:#4e9af1; color:#fff; }
   background: #e74c3c !important;
   color: #fff;
   font-weight: bold;
-  cursor: help;
 }
 
 /* TABS */
@@ -121,15 +118,17 @@ th { background:#4e9af1; color:#fff; }
 
 <input id="eventName" placeholder="Event Name" />
 <input id="eventDate" type="date" />
-<input id="eventStart" type="time" />
-<input id="eventEnd" type="time" />
-<input id="eventGuests" type="number" placeholder="Guests" />
-<select id="eventService">
+<input id="eventStart" type="time" onchange="autoRecommendStaff()" />
+<input id="eventEnd" type="time" onchange="autoRecommendStaff()" />
+<input id="eventGuests" type="number" placeholder="Guests" oninput="autoRecommendStaff()" />
+
+<select id="eventService" onchange="autoRecommendStaff()">
   <option>Plated Service</option>
   <option>Buffet Service</option>
   <option>Reception</option>
   <option>Coffee Break</option>
 </select>
+
 <input id="eventStaff" type="number" placeholder="Staff Needed" />
 <button onclick="addEvent()">Add / Save</button>
 
@@ -148,18 +147,14 @@ th { background:#4e9af1; color:#fff; }
 <!-- SCHEDULE -->
 <div id="scheduleTab" class="tab">
 <h2>Schedule</h2>
-
 <button onclick="changeWeek(-1)">⬅ Previous Week</button>
 <button onclick="changeWeek(1)">Next Week ➡</button>
 <button onclick="generateSchedule()">Generate</button>
 <button onclick="regenerateSchedule()">Regenerate</button>
-
 <table id="scheduleTable"></table>
 </div>
 
 <script>
-const PRO_ENABLED = true;
-
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
 let editingEventId = null;
@@ -208,8 +203,7 @@ function rebalanceSeniority(){
 
 function retireEmployee(id){
   if(!confirm("Retire this employee?")) return;
-  const emp = employees.find(e=>e.id===id);
-  emp.retired = true;
+  employees.find(e=>e.id===id).retired=true;
   rebalanceSeniority();
   save(); renderEmployees(); generateSchedule();
 }
@@ -232,17 +226,35 @@ function renderEmployees(){
   });
 }
 
-/* EVENTS (unchanged) */
-function addEvent(){
-  if(editingEventId){
-    Object.assign(events.find(e=>e.id===editingEventId), readEventForm());
-    editingEventId=null;
-  } else events.push({ id:crypto.randomUUID(), ...readEventForm() });
-  save(); renderEvents(); generateSchedule();
+/* EVENTS */
+function autoRecommendStaff(){
+  const guests=+eventGuests.value;
+  if(!guests) return;
+
+  const service=eventService.value;
+  const start=eventStart.value;
+  const end=eventEnd.value;
+
+  let ratio={
+    "Plated Service":20,
+    "Buffet Service":30,
+    "Reception":40,
+    "Coffee Break":50
+  }[service] || 30;
+
+  let base=Math.ceil(guests/ratio);
+
+  if(start && end){
+    const hours=(new Date(`1970-01-01T${end}`)-new Date(`1970-01-01T${start}`))/3600000;
+    if(hours>4) base+=Math.ceil((hours-4)/2)*Math.ceil(base*0.1);
+  }
+
+  eventStaff.value=base;
 }
 
-function readEventForm(){
-  return {
+function addEvent(){
+  const data={
+    id: editingEventId || crypto.randomUUID(),
     name:eventName.value,
     date:eventDate.value,
     start:eventStart.value,
@@ -251,6 +263,13 @@ function readEventForm(){
     service:eventService.value,
     staff:+eventStaff.value
   };
+
+  if(editingEventId){
+    Object.assign(events.find(e=>e.id===editingEventId),data);
+    editingEventId=null;
+  } else events.push(data);
+
+  save(); renderEvents(); generateSchedule();
 }
 
 function renderEvents(){
@@ -268,7 +287,25 @@ function renderEvents(){
   });
 }
 
-/* WEEK + SCHEDULE */
+function editEvent(id){
+  const e=events.find(x=>x.id===id);
+  editingEventId=id;
+  eventName.value=e.name;
+  eventDate.value=e.date;
+  eventStart.value=e.start;
+  eventEnd.value=e.end;
+  eventGuests.value=e.guests;
+  eventService.value=e.service;
+  eventStaff.value=e.staff;
+}
+
+function deleteEvent(id){
+  if(!confirm("Delete event?")) return;
+  events=events.filter(e=>e.id!==id);
+  save(); renderEvents(); generateSchedule();
+}
+
+/* SCHEDULE */
 const iso=d=>d.toISOString().split("T")[0];
 
 function getWeekStart(){
@@ -293,49 +330,22 @@ function generateSchedule(){
   const start=getWeekStart();
   const days=[...Array(7)].map((_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d;});
 
-  weekHeader.textContent =
-    `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
+  weekHeader.textContent=`${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
 
-  scheduleTable.innerHTML =
-    "<tr><th>Employee</th>" +
-    days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</th>`).join("") +
+  scheduleTable.innerHTML="<tr><th>Employee</th>"+
+    days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</th>`).join("")+
     "<th>Total</th></tr>";
 
   employees.filter(e=>!e.retired).forEach(emp=>{
-    let total=0;
-    let row=`<tr><td>${emp.name}</td>`;
-
+    let total=0,row=`<tr><td>${emp.name}</td>`;
     days.forEach(d=>{
-      let conflicts=[];
       const ev=events.find(e=>e.date===iso(d));
-
-      if(emp.vacation) conflicts.push("Employee on vacation");
-      if(emp.sick) conflicts.push("Employee is sick");
-
-      if(!ev){
-        row+="<td></td>";
-        return;
-      }
-
-      const startHour=parseInt(ev.start);
-      if(emp.pref==="AM" && startHour>=12) conflicts.push("PM shift conflicts with AM preference");
-      if(emp.pref==="PM" && startHour<12) conflicts.push("AM shift conflicts with PM preference");
-
-      if(conflicts.length){
-        row+=`<td class="conflict" title="${conflicts.join(" | ")}">⚠️</td>`;
-        return;
-      }
-
+      if(!ev||emp.vacation||emp.sick){ row+="<td></td>"; return; }
       const s=normalizeHours(ev.start,ev.end);
       total+=s.h;
       row+=`<td class="${s.cls}">${s.h}h</td>`;
     });
-
-    let totalCell = total>40
-      ? `<td class="conflict" title="Weekly hours exceed 40">${total}h ⚠️</td>`
-      : `<td><strong>${total}h</strong></td>`;
-
-    row+=totalCell+"</tr>";
+    row+=`<td><strong>${total}h</strong></td></tr>`;
     scheduleTable.innerHTML+=row;
   });
 }
@@ -345,9 +355,8 @@ function regenerateSchedule(){
   setTimeout(generateSchedule,50);
 }
 
-function toggleDarkMode(){
-  document.body.classList.toggle("light-mode");
-}
+function changeWeek(n){ currentWeekOffset+=n; generateSchedule(); }
+function toggleDarkMode(){ document.body.classList.toggle("light-mode"); }
 
 /* INIT */
 renderEmployees();
