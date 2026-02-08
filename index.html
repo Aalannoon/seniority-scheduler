@@ -2,121 +2,75 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Seniority Scheduler</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 <style>
-:root{
-  --blue:#2563eb;
-  --bg:#f4f6fb;
-  --card:#ffffff;
-  --border:#e5e7eb;
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  margin: 0;
+  padding: 20px;
 }
 
-body{
-  margin:0;
-  padding:20px;
-  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  background:var(--bg);
+h1, h2 {
+  margin-top: 0;
 }
 
-h1{margin-bottom:10px}
-h2{margin:10px 0}
-
-.tabs{
-  display:flex;
-  gap:10px;
-  margin-bottom:20px;
+section {
+  background: white;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 6px;
 }
 
-.tab{
-  padding:10px 18px;
-  background:#e5e7eb;
-  border-radius:10px;
-  font-weight:600;
-  cursor:pointer;
+input, select, button {
+  padding: 6px;
+  margin: 4px 0;
 }
 
-.tab.active{
-  background:var(--blue);
-  color:white;
+button {
+  cursor: pointer;
 }
 
-.card{
-  background:var(--card);
-  border-radius:14px;
-  padding:18px;
-  box-shadow:0 12px 30px rgba(0,0,0,.08);
-  margin-bottom:20px;
+table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
 }
 
-button{
-  padding:8px 14px;
-  border:none;
-  border-radius:8px;
-  font-weight:600;
-  cursor:pointer;
+th, td {
+  border: 1px solid #ccc;
+  padding: 6px;
+  text-align: center;
+  font-size: 13px;
 }
 
-.primary{background:var(--blue);color:white}
-.secondary{background:#e5e7eb}
-.danger{background:#dc2626;color:white}
-
-input,select{
-  padding:6px;
-  margin:4px 0;
+th {
+  background: #eee;
 }
 
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:10px;
+.employee-row {
+  background: #fafafa;
+  font-weight: bold;
 }
 
-th,td{
-  border:1px solid var(--border);
-  padding:8px;
-  text-align:center;
+.shift-4 { background: #6fcf97; }
+.shift-6 { background: #f2994a; }
+.shift-8 { background: #f2c94c; }
+.shift-ot { background: #bb6bd9; color: white; }
+
+.vacation {
+  background: #ddd;
+  font-style: italic;
 }
 
-th{
-  background:#eef2ff;
+.sick {
+  background: #bdbdbd;
+  font-style: italic;
 }
 
-.employee{
-  font-weight:700;
-  text-align:left;
-  background:#f9fafb;
-}
-
-.shift-4{background:#c8f7c5}
-.shift-6{background:#ffd59e}
-.shift-8{background:#fff3a0}
-.shift-ot{background:#d5b3ff}
-.shift-sick{background:#b3d9ff;font-weight:700}
-.vacation{background:#e5e7eb;color:#6b7280;font-style:italic}
-
-.hidden{display:none}
-
-#overlay{
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.4);
-}
-
-#editor{
-  display:none;
-  position:fixed;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  background:white;
-  padding:20px;
-  border-radius:14px;
-  width:320px;
+.hidden {
+  display: none;
 }
 </style>
 </head>
@@ -125,278 +79,147 @@ th{
 
 <h1>Seniority Scheduler</h1>
 
-<div class="tabs">
-  <div class="tab active" onclick="showTab('schedule')">Schedule</div>
-  <div class="tab" onclick="showTab('events')">Events</div>
-  <div class="tab" onclick="showTab('employees')">Employees</div>
-  <div class="tab" onclick="showTab('timeoff')">Time Off</div>
-</div>
+<section>
+<h2>Add Employee</h2>
+<input id="empName" placeholder="Name">
+<select id="empType">
+  <option value="full">Full Time</option>
+  <option value="part">Part Time</option>
+</select>
+<select id="empPref">
+  <option value="morning">Morning</option>
+  <option value="mid">Midday</option>
+  <option value="night">Night</option>
+</select>
+<button onclick="addEmployee()">Add</button>
+</section>
 
-<div id="schedule" class="card">
-  <button class="primary" onclick="generateSchedule()">Generate Schedule</button>
-  <button class="secondary" onclick="exportPDF()">Export PDF</button>
-  <h2 id="scheduleHeader"></h2>
-  <div id="scheduleTable"></div>
-</div>
+<section>
+<h2>Add Event (Manager)</h2>
+<input type="date" id="eventDate">
+<input placeholder="Event Name (manager only)" id="eventName">
+<input type="number" id="guestCount" placeholder="Guests">
+<input type="number" id="staffNeeded" placeholder="Servers Needed">
+<button onclick="addEvent()">Add Event</button>
+</section>
 
-<div id="events" class="card hidden">
-  <h2>Events</h2>
-  <input id="evDate" type="date">
-  <input id="evStart" type="time">
-  <input id="evEnd" type="time">
-  <input id="evGuests" type="number" placeholder="Guests">
-  <button class="primary" onclick="addEvent()">Add Event</button>
-  <ul id="eventList"></ul>
-</div>
+<section>
+<h2>Generate Schedule</h2>
+<button onclick="generateSchedule()">Generate</button>
+</section>
 
-<div id="employees" class="card hidden">
-  <h2>Employees</h2>
-  <input id="empName" placeholder="Name">
-  <select id="empType">
-    <option value="FT">Full-Time</option>
-    <option value="PT">Part-Time</option>
-  </select>
-  <select id="empPref">
-    <option value="morning">Morning</option>
-    <option value="midday">Midday</option>
-    <option value="night">Night</option>
-  </select>
-  <button class="primary" onclick="addEmployee()">Add Employee</button>
-  <ul id="employeeList"></ul>
-</div>
-
-<div id="timeoff" class="card hidden">
-  <h2>Vacation</h2>
-  <select id="vacEmp"></select>
-  <input id="vacStart" type="date">
-  <input id="vacEnd" type="date">
-  <button class="primary" onclick="addVacation()">Add Vacation</button>
-</div>
-
-<div id="overlay"></div>
-
-<div id="editor">
-  <h3>Edit Day</h3>
-  <label><input type="radio" name="dayType" value="shift" checked> Shift</label>
-  <label><input type="radio" name="dayType" value="sick"> Sick</label>
-  <div>
-    <input id="editStart" type="time">
-    <input id="editEnd" type="time">
-    <label><input type="checkbox" id="editOT"> OT</label>
-  </div>
-  <button class="primary" onclick="saveEdit()">Save</button>
-  <button class="secondary" onclick="closeEditor()">Cancel</button>
-</div>
+<section>
+<h2>Weekly Schedule</h2>
+<div id="schedule"></div>
+</section>
 
 <script>
-const { jsPDF } = window.jspdf;
+let employees = JSON.parse(localStorage.getItem("employees")) || [];
+let events = JSON.parse(localStorage.getItem("events")) || [];
+let schedule = {};
 
-let employees=JSON.parse(localStorage.getItem("employees"))||[];
-let events=JSON.parse(localStorage.getItem("events"))||[];
-let scheduleData=JSON.parse(localStorage.getItem("scheduleData"))||{};
-let editTarget=null;
-
-function saveAll(){
-  localStorage.setItem("employees",JSON.stringify(employees));
-  localStorage.setItem("events",JSON.stringify(events));
-  localStorage.setItem("scheduleData",JSON.stringify(scheduleData));
+function save() {
+  localStorage.setItem("employees", JSON.stringify(employees));
+  localStorage.setItem("events", JSON.stringify(events));
 }
 
-function showTab(id){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.card').forEach(c=>c.classList.add('hidden'));
-  document.getElementById(id).classList.remove('hidden');
-  [...document.querySelectorAll('.tab')]
-    .find(t=>t.textContent.toLowerCase()===id)
-    .classList.add('active');
-}
-
-function normalizeSeniority(){
-  let ft=employees.filter(e=>e.type==="FT");
-  let pt=employees.filter(e=>e.type==="PT");
-  employees=[...ft,...pt];
-  employees.forEach((e,i)=>e.seniority=i+1);
-}
-
-function addEmployee(){
+function addEmployee() {
   employees.push({
-    name:empName.value,
-    type:empType.value,
-    preference:empPref.value,
-    seniority:0,
-    vacations:[]
+    id: Date.now(),
+    name: empName.value,
+    type: empType.value,
+    pref: empPref.value,
+    seniority: employees.length + 1,
+    retired: false
   });
-  normalizeSeniority();
-  saveAll();
-  renderEmployees();
+  save();
+  render();
 }
 
-function addEvent(){
+function addEvent() {
   events.push({
-    date:evDate.value,
-    start:evStart.value,
-    end:evEnd.value,
-    guests:+evGuests.value
+    id: Date.now(),
+    date: eventDate.value,
+    name: eventName.value,
+    guests: +guestCount.value,
+    staff: +staffNeeded.value
   });
-  saveAll();
-  renderEvents();
+  save();
+  render();
 }
 
-function addVacation(){
-  let emp=employees.find(e=>e.name===vacEmp.value);
-  emp.vacations.push({start:vacStart.value,end:vacEnd.value});
-  saveAll();
-}
+function generateSchedule() {
+  schedule = {};
+  const week = getWeek();
 
-function shiftCategory(start){
-  let h=parseInt(start.split(":")[0]);
-  if(h<12) return "morning";
-  if(h<15) return "midday";
-  return "night";
-}
+  week.forEach(day => {
+    schedule[day] = [];
+    let todaysEvents = events.filter(e => e.date === day);
 
-function preferenceOrder(pref){
-  if(pref==="morning") return ["morning","midday","night"];
-  if(pref==="midday") return ["midday","night","morning"];
-  return ["night","midday","morning"];
-}
+    let needed = todaysEvents.reduce((a, e) => a + e.staff, 0);
+    let available = [...employees]
+      .filter(e => !e.retired)
+      .sort((a, b) => {
+        if (a.type !== b.type) return a.type === "full" ? -1 : 1;
+        return a.seniority - b.seniority;
+      });
 
-function generateSchedule(){
-  scheduleData={};
-  employees.forEach(e=>scheduleData[e.name]={});
+    let used = new Set();
 
-  events.forEach(ev=>{
-    let need=ev.guests<=50?2:ev.guests<=150?4:ev.guests<=300?6:8;
-    let evCat=shiftCategory(ev.start);
+    for (let emp of available) {
+      if (used.size >= needed) break;
+      used.add(emp.id);
 
-    employees.forEach(emp=>{
-      if(need<=0) return;
-      if(scheduleData[emp.name][ev.date]) return;
-      if(emp.vacations.some(v=>ev.date>=v.start&&ev.date<=v.end)) return;
-
-      let order=preferenceOrder(emp.preference);
-      if(!order.includes(evCat)) return;
-
-      let paid=Math.max(4,Math.min(8,
-        (new Date(ev.date+"T"+ev.end)-new Date(ev.date+"T"+ev.start))/3600000
-      ));
-      let schedH=paid>4?paid+0.5:paid;
-
-      scheduleData[emp.name][ev.date]={
-        type:"shift",start:ev.start,end:ev.end,paid,schedH,ot:false
-      };
-      need--;
-    });
-
-    employees.forEach(emp=>{
-      if(need<=0) return;
-      if(scheduleData[emp.name][ev.date]) return;
-
-      let paid=Math.max(4,Math.min(8,
-        (new Date(ev.date+"T"+ev.end)-new Date(ev.date+"T"+ev.start))/3600000
-      ));
-      let schedH=paid>4?paid+0.5:paid;
-
-      scheduleData[emp.name][ev.date]={
-        type:"shift",start:ev.start,end:ev.end,paid,schedH,ot:false
-      };
-      need--;
-    });
+      let hours = 8;
+      schedule[day].push({
+        empId: emp.id,
+        hours
+      });
+    }
   });
 
-  saveAll();
-  renderSchedule();
+  render();
 }
 
-function getWeek(){
-  let t=new Date();
-  let m=new Date(t);
-  m.setDate(t.getDate()-((t.getDay()+6)%7));
-  return [...Array(7)].map((_,i)=>{
-    let d=new Date(m);d.setDate(m.getDate()+i);
-    return d.toISOString().split("T")[0];
+function getWeek() {
+  const today = new Date();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - today.getDay() + 1);
+
+  return [...Array(7)].map((_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d.toISOString().slice(0, 10);
   });
 }
 
-function renderSchedule(){
-  let week=getWeek();
-  scheduleHeader.textContent=
-    new Date(week[0]).toLocaleString("default",{month:"long",year:"numeric"});
+function render() {
+  let week = getWeek();
+  let html = `<table><tr><th>Employee</th>`;
+  week.forEach(d => html += `<th>${new Date(d).toDateString()}</th>`);
+  html += `</tr>`;
 
-  let html="<table><tr><th>Employee</th>";
-  week.forEach(d=>{
-    html+=`<th>${new Date(d).toLocaleDateString("default",{weekday:"short"})}</th>`;
-  });
-  html+="</tr>";
-
-  employees.forEach(emp=>{
-    html+=`<tr><td class="employee">#${emp.seniority} ${emp.name}</td>`;
-    week.forEach(d=>{
-      let sh=scheduleData[emp.name]?.[d];
-      if(sh){
-        html+=`<td class="${sh.type==="sick"?"shift-sick":sh.ot?"shift-ot":"shift-"+sh.paid}"
-          onclick="openEditor('${emp.name}','${d}')">
-          ${sh.type==="sick"?"SICK":`${sh.start}-${sh.end}<br>${sh.schedH}h`}
-        </td>`;
-      }else{
-        html+=`<td onclick="openEditor('${emp.name}','${d}')"></td>`;
+  employees.forEach(emp => {
+    html += `<tr><td class="employee-row">${emp.name}</td>`;
+    week.forEach(day => {
+      let shift = schedule[day]?.find(s => s.empId === emp.id);
+      if (!shift) {
+        html += `<td></td>`;
+      } else {
+        let cls = shift.hours === 4 ? "shift-4" :
+                  shift.hours === 6 ? "shift-6" :
+                  shift.hours === 8 ? "shift-8" : "shift-ot";
+        html += `<td class="${cls}">${shift.hours} hrs</td>`;
       }
     });
-    html+="</tr>";
+    html += `</tr>`;
   });
 
-  scheduleTable.innerHTML=html+"</table>";
+  html += `</table>`;
+  document.getElementById("schedule").innerHTML = html;
 }
 
-function openEditor(n,d){
-  editTarget={n,d};
-  overlay.style.display=editor.style.display="block";
-}
-
-function closeEditor(){
-  overlay.style.display=editor.style.display="none";
-}
-
-function saveEdit(){
-  let type=document.querySelector('input[name="dayType"]:checked').value;
-  if(type==="sick"){
-    scheduleData[editTarget.n][editTarget.d]={type:"sick"};
-  }
-  saveAll();
-  closeEditor();
-  renderSchedule();
-}
-
-function exportPDF(){
-  let doc=new jsPDF({orientation:"landscape"});
-  doc.html(scheduleTable,{
-    callback:()=>doc.save("schedule.pdf"),
-    x:10,y:10,width:270
-  });
-}
-
-function renderEmployees(){
-  employeeList.innerHTML="";
-  employees.forEach(e=>{
-    employeeList.innerHTML+=
-      `<li>#${e.seniority} ${e.name} (${e.type}) – ${e.preference}</li>`;
-  });
-  vacEmp.innerHTML=employees.map(e=>`<option>${e.name}</option>`).join("");
-}
-
-function renderEvents(){
-  eventList.innerHTML="";
-  events.forEach((e,i)=>{
-    eventList.innerHTML+=
-      `<li>${e.date} ${e.start}-${e.end} (${e.guests})
-      <button class="danger"
-        onclick="events.splice(${i},1);saveAll();renderEvents()">X</button></li>`;
-  });
-}
-
-renderEmployees();
-renderEvents();
-renderSchedule();
+render();
 </script>
 
 </body>
