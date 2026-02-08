@@ -8,102 +8,29 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body{
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background:#f3f6fb;
-  margin:0;
-  padding:20px;
-}
-
-h1{margin-bottom:10px;}
-h2{margin:0 0 10px;}
-
-.tabs{
-  display:flex;
-  gap:10px;
-  margin-bottom:20px;
-}
-
-.tab{
-  padding:10px 16px;
-  background:#e5e7eb;
-  border-radius:8px;
-  cursor:pointer;
-  font-weight:600;
-}
-
-.tab.active{
-  background:#2563eb;
-  color:white;
-}
-
-.card{
-  background:white;
-  border-radius:10px;
-  padding:16px;
-  box-shadow:0 8px 24px rgba(0,0,0,.05);
-  margin-bottom:20px;
-}
-
-button{
-  padding:8px 14px;
-  border:none;
-  border-radius:6px;
-  font-weight:600;
-  cursor:pointer;
-}
-
-.primary{background:#2563eb;color:white;}
-.danger{background:#dc2626;color:white;}
-.secondary{background:#e5e7eb;}
-
-table{
-  width:100%;
-  border-collapse:collapse;
-}
-
-th,td{
-  border:1px solid #e5e7eb;
-  padding:8px;
-  text-align:center;
-}
-
-th{
-  background:#eef2ff;
-}
-
-.employee{
-  font-weight:700;
-  text-align:left;
-  background:#f9fafb;
-}
-
-.shift-4{background:#c8f7c5;}
-.shift-6{background:#ffd59e;}
-.shift-8{background:#fff3a0;}
-.shift-ot{background:#d5b3ff;}
-.shift-sick{background:#b3d9ff;font-weight:700;}
-.vacation{background:#e5e7eb;color:#6b7280;font-style:italic;}
-
-.hidden{display:none;}
-
-#overlay{
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.4);
-}
-
-#editor{
-  display:none;
-  position:fixed;
-  top:50%;left:50%;
-  transform:translate(-50%,-50%);
-  background:white;
-  padding:20px;
-  border-radius:12px;
-  width:320px;
-}
+body{font-family:system-ui;background:#f3f6fb;margin:0;padding:20px}
+h1{margin-bottom:10px}
+.tabs{display:flex;gap:10px;margin-bottom:20px}
+.tab{padding:10px 16px;background:#e5e7eb;border-radius:8px;cursor:pointer;font-weight:600}
+.tab.active{background:#2563eb;color:white}
+.card{background:white;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.05);margin-bottom:20px}
+button{padding:8px 14px;border:none;border-radius:6px;font-weight:600;cursor:pointer}
+.primary{background:#2563eb;color:white}
+.secondary{background:#e5e7eb}
+.danger{background:#dc2626;color:white}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #e5e7eb;padding:8px;text-align:center}
+th{background:#eef2ff}
+.employee{font-weight:700;text-align:left;background:#f9fafb}
+.shift-4{background:#c8f7c5}
+.shift-6{background:#ffd59e}
+.shift-8{background:#fff3a0}
+.shift-ot{background:#d5b3ff}
+.shift-sick{background:#b3d9ff;font-weight:700}
+.vacation{background:#e5e7eb;color:#6b7280;font-style:italic}
+.hidden{display:none}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4)}
+#editor{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:12px;width:320px}
 </style>
 </head>
 
@@ -145,6 +72,11 @@ th{
     <option value="FT">Full-Time</option>
     <option value="PT">Part-Time</option>
   </select>
+  <select id="empPref">
+    <option value="morning">Morning</option>
+    <option value="midday">Midday</option>
+    <option value="night">Night</option>
+  </select>
   <button class="primary" onclick="addEmployee()">Add Employee</button>
   <ul id="employeeList"></ul>
 </div>
@@ -164,7 +96,7 @@ th{
   <h3>Edit Day</h3>
   <label><input type="radio" name="dayType" value="shift" checked> Shift</label>
   <label><input type="radio" name="dayType" value="sick"> Sick</label>
-  <div id="shiftEdit">
+  <div>
     <input id="editStart" type="time">
     <input id="editEnd" type="time">
     <label><input type="checkbox" id="editOT"> OT</label>
@@ -202,7 +134,13 @@ function normalizeSeniority(){
 }
 
 function addEmployee(){
-  employees.push({name:empName.value,type:empType.value,seniority:0,vacations:[]});
+  employees.push({
+    name:empName.value,
+    type:empType.value,
+    preference:empPref.value,
+    seniority:0,
+    vacations:[]
+  });
   normalizeSeniority();
   saveAll();
   renderEmployees();
@@ -220,13 +158,27 @@ function addVacation(){
   saveAll();
 }
 
+function eventPreference(start){
+  let h=parseInt(start.split(":")[0]);
+  if(h<12) return "morning";
+  if(h<15) return "midday";
+  return "night";
+}
+
 function generateSchedule(){
   scheduleData={};
   employees.forEach(e=>scheduleData[e.name]={});
 
   events.forEach(ev=>{
     let need=ev.guests<=50?2:ev.guests<=150?4:ev.guests<=300?6:8;
-    employees.forEach(emp=>{
+    let pref=eventPreference(ev.start);
+
+    let ordered=[
+      ...employees.filter(e=>e.preference===pref),
+      ...employees.filter(e=>e.preference!==pref)
+    ];
+
+    ordered.forEach(emp=>{
       if(need<=0) return;
       if(emp.vacations.some(v=>ev.date>=v.start&&ev.date<=v.end)) return;
       if(scheduleData[emp.name][ev.date]) return;
@@ -296,7 +248,7 @@ function exportPDF(){
 function renderEmployees(){
   employeeList.innerHTML="";
   employees.forEach(e=>{
-    employeeList.innerHTML+=`<li>#${e.seniority} ${e.name} (${e.type})</li>`;
+    employeeList.innerHTML+=`<li>#${e.seniority} ${e.name} (${e.type}) – ${e.preference}</li>`;
   });
   vacEmp.innerHTML=employees.map(e=>`<option>${e.name}</option>`).join("");
 }
