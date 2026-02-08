@@ -67,7 +67,7 @@ th {
 }
 
 .shift-ot {
-  background: #d5b3ff; /* purple */
+  background: #d5b3ff; /* purple (manual only later) */
 }
 </style>
 </head>
@@ -192,6 +192,8 @@ function generateSchedule() {
     const start = new Date(event.date + "T" + event.start);
     const end = new Date(event.date + "T" + event.end);
     let hours = (end - start) / 3600000;
+
+    // Minimum 4 hours per day
     hours = Math.max(hours, 4);
 
     const needed = recommendServers(event.guests);
@@ -206,13 +208,16 @@ function generateSchedule() {
         schedule[emp.name][event.date] = {
           start: event.start,
           end: event.end,
-          hours
+          hours: hours
         };
       } else {
         const existing = schedule[emp.name][event.date];
+
         existing.start = existing.start < event.start ? existing.start : event.start;
         existing.end = existing.end > event.end ? existing.end : event.end;
-        existing.hours += hours;
+
+        // 🔒 CAP AT 8 HOURS — NO AUTO OT
+        existing.hours = Math.min(existing.hours + hours, 8);
       }
 
       assigned++;
@@ -223,7 +228,6 @@ function generateSchedule() {
 }
 
 function getShiftClass(hours) {
-  if (hours > 8) return "shift-ot";
   if (hours >= 8) return "shift-8";
   if (hours >= 6) return "shift-6";
   return "shift-4";
