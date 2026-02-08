@@ -1,49 +1,70 @@
 let employees = [];
+let events = [];
 
 function addEmployee() {
-  const name = document.getElementById("name").value;
-  const seniority = Number(document.getElementById("seniority").value);
+  const name = empName.value;
+  const seniority = Number(empSeniority.value);
+  const maxHours = Number(empMaxHours.value);
 
-  if (!name || !seniority) return alert("Fill all fields");
+  if (!name || !seniority || !maxHours) return;
 
   employees.push({
     name,
     seniority,
+    maxHours,
     hours: 0
   });
 
-  document.getElementById("name").value = "";
-  document.getElementById("seniority").value = "";
-
+  empName.value = empSeniority.value = empMaxHours.value = "";
   renderEmployees();
 }
 
 function renderEmployees() {
-  const list = document.getElementById("employeeList");
-  list.innerHTML = "";
+  employeeTable.innerHTML = "";
+  employees
+    .sort((a, b) => b.seniority - a.seniority)
+    .forEach(e => {
+      employeeTable.innerHTML += `
+        <tr>
+          <td data-label="Name">${e.name}</td>
+          <td data-label="Seniority">${e.seniority}</td>
+          <td data-label="Max">${e.maxHours}</td>
+          <td data-label="Assigned">${e.hours}</td>
+        </tr>
+      `;
+    });
+}
 
-  employees.forEach(e => {
-    const li = document.createElement("li");
-    li.textContent = `${e.name} – ${e.seniority} yrs`;
-    list.appendChild(li);
+function addEvent() {
+  const event = {
+    name: eventName.value,
+    date: eventDate.value,
+    start: eventStart.value,
+    end: eventEnd.value,
+    staff: Number(eventStaff.value)
+  };
+
+  if (!event.name || !event.date || !event.start || !event.end || !event.staff) return;
+
+  events.push(event);
+  eventName.value = eventDate.value = eventStart.value = eventEnd.value = eventStaff.value = "";
+  renderEvents();
+}
+
+function renderEvents() {
+  eventTable.innerHTML = "";
+  events.forEach(e => {
+    eventTable.innerHTML += `
+      <tr>
+        <td data-label="Event">${e.name}</td>
+        <td data-label="Date">${e.date}</td>
+        <td data-label="Time">${e.start} – ${e.end}</td>
+        <td data-label="Servers">${e.staff}</td>
+      </tr>
+    `;
   });
 }
 
 function generateSchedule() {
-  if (employees.length === 0) return;
-
-  // Sort by seniority (highest first)
-  const sorted = [...employees].sort(
-    (a, b) => b.seniority - a.seniority
-  );
-
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-  let schedule = {};
-
-  days.forEach(day => {
-    schedule[day] = sorted[day % sorted.length].name;
-  });
-
-  document.getElementById("scheduleOutput").textContent =
-    JSON.stringify(schedule, null, 2);
+  alert("Scheduling engine comes next 🚧");
 }
