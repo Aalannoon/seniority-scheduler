@@ -4,45 +4,105 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Seniority Scheduler</title>
+
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-h2 { margin-top: 30px; }
-input, select, button { margin: 4px 0; padding: 6px; }
-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+body { font-family: Arial, sans-serif; margin:20px; }
+h2 { margin-top:30px; }
+input, select, button { padding:6px; margin:4px; }
+table { width:100%; border-collapse:collapse; margin-top:10px; }
+th, td { border:1px solid #ccc; padding:6px; text-align:center; }
 
 .vacation { background:#ffecec; }
 .parttime { background:#f5f5f5; }
+.warning { background:#ffe0b2; }
 
-.hour-4 { background:#7CFC9A; }      /* green */
-.hour-5 { background:#B6F5C2; }
-.hour-6 { background:#FFA94D; }      /* orange */
-.hour-7 { background:#FFD166; }
-.hour-8 { background:#FFF176; }      /* yellow */
-.hour-low { background:#8ECDF7; }    /* blue */
-.hour-ot { background:#C084FC; color:#fff; } /* purple */
+.hour-low { background:#8ecdf7; }
+.hour-4 { background:#7cfc9a; }
+.hour-5 { background:#b6f5c2; }
+.hour-6 { background:#ffa94d; }
+.hour-7 { background:#ffd166; }
+.hour-8 { background:#fff176; }
+.hour-ot { background:#c084fc; color:#fff; }
 
-.day-header {
-  background:#333; color:#fff; font-weight:bold;
+.modal {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.4);
+  align-items:center; justify-content:center;
+}
+.modal-content {
+  background:#fff; padding:20px; width:340px;
 }
 </style>
 </head>
+
 <body>
 
-<h1>Weekly Seniority Schedule</h1>
+<h1>Seniority Scheduler</h1>
 
-<h2>Generate Schedule</h2>
-<button onclick="generateSchedule()">Generate</button>
+<!-- EMPLOYEES -->
+<h2>Add Employee</h2>
+<input id="empName" placeholder="Name">
+<select id="empType">
+  <option value="full">Full Time</option>
+  <option value="part">Part Time</option>
+</select>
+<select id="empPref">
+  <option>Morning</option>
+  <option>Midday</option>
+  <option>Night</option>
+</select>
+<button onclick="addEmployee()">Add</button>
 
 <table>
 <thead>
 <tr>
-<th>Date</th>
-<th>Day</th>
-<th>Event</th>
-<th>Time</th>
-<th>Employee</th>
-<th>Hours</th>
+<th>Seniority</th><th>Name</th><th>Type</th>
+<th>Pref</th><th>Status</th><th>Actions</th>
+</tr>
+</thead>
+<tbody id="employeeTable"></tbody>
+</table>
+
+<!-- EVENTS -->
+<h2>Add Event</h2>
+<input id="eventName" placeholder="Event name">
+<input type="date" id="eventDate">
+<input type="time" id="eventStart">
+<input type="time" id="eventEnd">
+
+<input type="number" id="eventGuests" placeholder="Guests">
+
+<select id="eventType">
+  <option value="seated">Seated Dinner</option>
+  <option value="buffet">Buffet</option>
+  <option value="cocktail">Cocktail</option>
+  <option value="wedding">Wedding / Formal</option>
+  <option value="conference">Conference</option>
+</select>
+
+<input type="number" id="eventServers" placeholder="Servers (manual)">
+<button onclick="addEvent()">Add Event</button>
+
+<table>
+<thead>
+<tr>
+<th>Date</th><th>Event</th><th>Time</th>
+<th>Guests</th><th>Recommended</th>
+<th>Assigned</th><th>Actions</th>
+</tr>
+</thead>
+<tbody id="eventTable"></tbody>
+</table>
+
+<!-- SCHEDULE -->
+<h2>Weekly Schedule</h2>
+<button onclick="generateSchedule()">Generate Schedule</button>
+
+<table>
+<thead>
+<tr>
+<th>Date</th><th>Day</th><th>Event</th>
+<th>Time</th><th>Employee</th><th>Daily Hours</th>
 </tr>
 </thead>
 <tbody id="scheduleTable"></tbody>
@@ -52,73 +112,126 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
 let employees = JSON.parse(localStorage.getItem("employees")||"[]");
 let events = JSON.parse(localStorage.getItem("events")||"[]");
 
+const ratios = {
+  seated:20,
+  buffet:30,
+  cocktail:40,
+  wedding:15,
+  conference:25
+};
+
+function saveAll(){
+  localStorage.setItem("employees",JSON.stringify(employees));
+  localStorage.setItem("events",JSON.stringify(events));
+}
+
+function reorderSeniority(){
+  const full=employees.filter(e=>e.type==="full");
+  const part=employees.filter(e=>e.type==="part");
+  employees=[...full,...part];
+  employees.forEach((e,i)=>e.seniority=i+1);
+}
+
+function addEmployee(){
+  if(!empName.value) return;
+  employees.push({name:empName.value,type:empType.value,pref:empPref.value,vacation:false});
+  reorderSeniority(); saveAll(); renderEmployees();
+  empName.value="";
+}
+
+function renderEmployees(){
+  employeeTable.innerHTML="";
+  employees.forEach((e,i)=>{
+    const tr=document.createElement("tr");
+    if(e.vacation) tr.classList.add("vacation");
+    if(e.type==="part") tr.classList.add("parttime");
+    tr.innerHTML=`
+      <td>${e.seniority}</td>
+      <td>${e.name}</td>
+      <td>${e.type}</td>
+      <td>${e.pref}</td>
+      <td>${e.vacation?"Vacation":"Active"}</td>
+      <td></td>
+    `;
+    employeeTable.appendChild(tr);
+  });
+}
+
+function recommendedServers(guests,type){
+  if(!guests) return 0;
+  return Math.ceil(guests / ratios[type]);
+}
+
+function addEvent(){
+  const rec = recommendedServers(eventGuests.value, eventType.value);
+  events.push({
+    name:eventName.value,
+    date:eventDate.value,
+    start:eventStart.value,
+    end:eventEnd.value,
+    guests:+eventGuests.value,
+    type:eventType.value,
+    servers:+eventServers.value || rec
+  });
+  saveAll(); renderEvents();
+}
+
+function renderEvents(){
+  eventTable.innerHTML="";
+  events.forEach(e=>{
+    const rec = recommendedServers(e.guests, e.type);
+    const tr=document.createElement("tr");
+    if(e.servers < rec) tr.classList.add("warning");
+    tr.innerHTML=`
+      <td>${e.date}</td>
+      <td>${e.name}</td>
+      <td>${e.start}-${e.end}</td>
+      <td>${e.guests}</td>
+      <td>${rec}</td>
+      <td>${e.servers}</td>
+      <td></td>
+    `;
+    eventTable.appendChild(tr);
+  });
+}
+
 function hoursBetween(a,b){
   return (new Date("1970-01-01T"+b)-new Date("1970-01-01T"+a))/36e5;
 }
 
 function hourClass(h){
-  if(h > 8) return "hour-ot";
-  if(h < 4) return "hour-low";
+  if(h>8) return "hour-ot";
+  if(h<4) return "hour-low";
   return "hour-"+Math.round(h);
 }
 
-function weekday(date){
-  return ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date(date).getDay()];
+function weekday(d){
+  return ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date(d).getDay()];
 }
 
 function generateSchedule(){
   scheduleTable.innerHTML="";
-  let weekly = {};
-
-  // sort events by date then time
-  events.sort((a,b)=>{
-    if(a.date!==b.date) return a.date.localeCompare(b.date);
-    return a.start.localeCompare(b.start);
-  });
-
   events.forEach(ev=>{
-    const day = weekday(ev.date);
-    if(!weekly[ev.date]) weekly[ev.date]=[];
-
-    let needed = ev.servers;
-    const hours = hoursBetween(ev.start, ev.end);
-
-    let pool = employees
-      .filter(e=>!e.vacation)
-      .sort((a,b)=>a.seniority-b.seniority);
-
-    for(const emp of pool){
-      if(needed<=0) break;
-
-      weekly[ev.date].push({
-        date: ev.date,
-        day,
-        event: ev.name,
-        time: ev.start+"–"+ev.end,
-        emp: emp.name,
-        hours
-      });
-
-      needed--;
-    }
-  });
-
-  Object.keys(weekly).forEach(date=>{
-    weekly[date].forEach(row=>{
+    const hours = hoursBetween(ev.start,ev.end);
+    let pool = employees.filter(e=>!e.vacation).sort((a,b)=>a.seniority-b.seniority);
+    for(let i=0;i<ev.servers && i<pool.length;i++){
       const tr=document.createElement("tr");
-      tr.classList.add(hourClass(row.hours));
+      tr.classList.add(hourClass(hours));
       tr.innerHTML=`
-        <td>${row.date}</td>
-        <td>${row.day}</td>
-        <td>${row.event}</td>
-        <td>${row.time}</td>
-        <td>${row.emp}</td>
-        <td>${row.hours}</td>
+        <td>${ev.date}</td>
+        <td>${weekday(ev.date)}</td>
+        <td>${ev.name}</td>
+        <td>${ev.start}-${ev.end}</td>
+        <td>${pool[i].name}</td>
+        <td>${hours}</td>
       `;
       scheduleTable.appendChild(tr);
-    });
+    }
   });
 }
+
+renderEmployees();
+renderEvents();
 </script>
 
 </body>
