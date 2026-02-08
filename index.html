@@ -2,53 +2,24 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Seniority Scheduler</title>
+<title>Seniority Scheduler – Stable</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body {
-  font-family: Arial, sans-serif;
-  background: #f4f4f4;
-  padding: 20px;
-}
-
-section {
-  background: white;
-  padding: 15px;
-  margin-bottom: 20px;
-  border-radius: 6px;
-}
-
-input, select, button {
-  margin: 5px 0;
-  padding: 6px;
-}
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-th, td {
-  border: 1px solid #ccc;
-  padding: 6px;
-  text-align: center;
-}
-
-th {
-  background: #eee;
-}
-
-.employee {
-  font-weight: bold;
-  text-align: left;
-}
+body { font-family: Arial, sans-serif; background:#f4f4f4; padding:20px; }
+section { background:white; padding:15px; margin-bottom:20px; border-radius:6px; }
+input, select, button { padding:6px; margin:4px 0; }
+table { border-collapse:collapse; width:100%; }
+th, td { border:1px solid #ccc; padding:6px; text-align:center; }
+th { background:#eee; }
+.employee-name { font-weight:bold; text-align:left; }
+.list-item { display:flex; justify-content:space-between; margin:4px 0; }
 </style>
 </head>
 
 <body>
 
-<h1>Seniority Scheduler (Stable Core)</h1>
+<h1>Seniority Scheduler (Working Core)</h1>
 
 <section>
   <h2>Add Employee</h2>
@@ -62,7 +33,10 @@ th {
     <option value="midday">Midday</option>
     <option value="night">Night</option>
   </select>
-  <button onclick="addEmployee()">Add</button>
+  <button onclick="addEmployee()">Add Employee</button>
+
+  <h3>Employees</h3>
+  <div id="employeeList"></div>
 </section>
 
 <section>
@@ -94,6 +68,18 @@ function save() {
   localStorage.setItem("events", JSON.stringify(events));
 }
 
+function renderEmployees() {
+  const list = document.getElementById("employeeList");
+  list.innerHTML = "";
+  employees.forEach((e, i) => {
+    const div = document.createElement("div");
+    div.className = "list-item";
+    div.innerHTML = `${e.name} (${e.type}, ${e.preference})
+      <button onclick="removeEmployee(${i})">❌</button>`;
+    list.appendChild(div);
+  });
+}
+
 function addEmployee() {
   const name = empName.value.trim();
   if (!name) return;
@@ -101,12 +87,18 @@ function addEmployee() {
   employees.push({
     name,
     type: empType.value,
-    preference: empPref.value,
-    vacation: []
+    preference: empPref.value
   });
 
   save();
+  renderEmployees();
   empName.value = "";
+}
+
+function removeEmployee(i) {
+  employees.splice(i,1);
+  save();
+  renderEmployees();
 }
 
 function addEvent() {
@@ -116,7 +108,6 @@ function addEvent() {
     end: eventEnd.value,
     guests: Number(eventGuests.value)
   });
-
   save();
   renderEvents();
 }
@@ -125,18 +116,11 @@ function renderEvents() {
   eventList.innerHTML = "";
   events.forEach((e, i) => {
     const div = document.createElement("div");
-    div.innerHTML = `
-      ${e.date} ${e.start}-${e.end} (${e.guests} guests)
-      <button onclick="deleteEvent(${i})">❌</button>
-    `;
+    div.className = "list-item";
+    div.innerHTML = `${e.date} ${e.start}-${e.end} (${e.guests})
+      <button onclick="events.splice(${i},1); save(); renderEvents()">❌</button>`;
     eventList.appendChild(div);
   });
-}
-
-function deleteEvent(i) {
-  events.splice(i,1);
-  save();
-  renderEvents();
 }
 
 function recommendServers(guests) {
@@ -148,56 +132,21 @@ function recommendServers(guests) {
 }
 
 function generateSchedule() {
-  schedule = {};
-
-  const sortedEmployees = [...employees].sort((a,b)=>{
-    if (a.type !== b.type) return a.type === "full" ? -1 : 1;
-    return 0;
-  });
-
-  events.forEach(event => {
-    const start = new Date(event.date + "T" + event.start);
-    const end = new Date(event.date + "T" + event.end);
-    const hours = (end - start) / 3600000;
-
-    const needed = recommendServers(event.guests);
-    let assigned = 0;
-
-    sortedEmployees.forEach(emp => {
-      if (assigned >= needed) return;
-
-      if (!schedule[emp.name]) schedule[emp.name] = [];
-
-      schedule[emp.name].push({
-        date: event.date,
-        start: event.start,
-        end: event.end,
-        hours: hours
-      });
-
-      assigned++;
-    });
-  });
-
-  renderSchedule();
-}
-
-function renderSchedule() {
-  let html = "<table><tr><th>Employee</th><th>Shifts</th></tr>";
+  let html = "<table><tr><th>Employee</th><th>Assigned Shifts</th></tr>";
 
   employees.forEach(emp => {
-    html += `<tr><td class="employee">${emp.name}</td><td>`;
-    const shifts = schedule[emp.name] || [];
-    shifts.forEach(s => {
-      html += `${s.date} ${s.start}-${s.end} (${s.hours}h)<br>`;
+    html += `<tr><td class="employee-name">${emp.name}</td><td>`;
+    events.forEach(ev => {
+      html += `${ev.date} ${ev.start}-${ev.end}<br>`;
     });
     html += "</td></tr>";
   });
 
   html += "</table>";
-  document.getElementById("schedule").innerHTML = html;
+  schedule.innerHTML = html;
 }
 
+renderEmployees();
 renderEvents();
 </script>
 
