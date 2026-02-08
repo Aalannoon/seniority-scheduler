@@ -74,25 +74,63 @@ To <input type="date" id="vacEnd">
 let employees = JSON.parse(localStorage.getItem("employees")) || [];
 let events = JSON.parse(localStorage.getItem("events")) || [];
 
-function save(){ localStorage.setItem("employees",JSON.stringify(employees)); localStorage.setItem("events",JSON.stringify(events)); }
+function save(){
+  localStorage.setItem("employees",JSON.stringify(employees));
+  localStorage.setItem("events",JSON.stringify(events));
+}
+
+function normalizeSeniority(){
+  const full = employees.filter(e=>e.type==="full");
+  const part = employees.filter(e=>e.type==="part");
+
+  full.sort((a,b)=>a.seniority-b.seniority);
+  part.sort((a,b)=>a.seniority-b.seniority);
+
+  full.forEach((e,i)=>e.seniority=i+1);
+  part.forEach((e,i)=>e.seniority=full.length+i+1);
+
+  employees=[...full,...part];
+}
 
 function addEmployee(){
   if(!empName.value) return alert("Name required");
+
+  const seniority = employees.length + 1;
+
   employees.push({
     name: empName.value,
     type: empType.value,
     pref: empPref.value,
-    vacations:[]
+    seniority,
+    vacations: []
   });
+
+  normalizeSeniority();
   empName.value="";
-  save(); renderEmployees();
+  save();
+  renderEmployees();
+}
+
+function retireEmployee(index){
+  if(!confirm("Retire this employee?")) return;
+  employees.splice(index,1);
+  normalizeSeniority();
+  save();
+  renderEmployees();
 }
 
 function renderEmployees(){
-  employeeList.innerHTML=""; vacEmp.innerHTML="";
-  employees.forEach(e=>{
-    employeeList.innerHTML+=`<li>${e.name} (${e.type}, ${e.pref})</li>`;
-    vacEmp.innerHTML+=`<option>${e.name}</option>`;
+  employeeList.innerHTML="";
+  vacEmp.innerHTML="";
+
+  employees.forEach((e,i)=>{
+    employeeList.innerHTML += `
+      <li>
+        #${e.seniority} ${e.name}
+        (${e.type}, ${e.pref})
+        <button onclick="retireEmployee(${i})">Retire</button>
+      </li>`;
+    vacEmp.innerHTML += `<option>${e.name}</option>`;
   });
 }
 
@@ -100,7 +138,8 @@ function addVacation(){
   const e=employees.find(x=>x.name===vacEmp.value);
   if(!e||!vacStart.value||!vacEnd.value) return;
   e.vacations.push({start:vacStart.value,end:vacEnd.value});
-  save(); alert("Vacation added");
+  save();
+  alert("Vacation added");
 }
 
 function addEvent(){
@@ -110,16 +149,18 @@ function addEvent(){
     end:eventEnd.value,
     guests:Number(eventGuests.value||0)
   });
-  save(); renderEvents();
+  save();
+  renderEvents();
 }
 
 function renderEvents(){
   eventList.innerHTML="";
   events.forEach((e,i)=>{
-    eventList.innerHTML+=`<li>
-      ${e.date} ${e.start}-${e.end} (${e.guests})
-      <button onclick="events.splice(${i},1);save();renderEvents()">❌</button>
-    </li>`;
+    eventList.innerHTML+=`
+      <li>
+        ${e.date} ${e.start}-${e.end} (${e.guests})
+        <button onclick="events.splice(${i},1);save();renderEvents()">❌</button>
+      </li>`;
   });
 }
 
@@ -143,20 +184,20 @@ function prefScore(pref,start){
 
 function generateSchedule(){
   let sched={};
-  const sorted=[...employees].sort((a,b)=>{
-    if(a.type!==b.type) return a.type==="full"?-1:1;
-    return 0;
-  });
+
+  const sorted=[...employees].sort((a,b)=>a.seniority-b.seniority);
 
   events.forEach(ev=>{
     const start=new Date(ev.date+"T"+ev.start);
     const end=new Date(ev.date+"T"+ev.end);
+
     let paid=Math.max(4,Math.min(8,(end-start)/3600000));
     let schedH=paid>4?paid+0.5:paid;
     let need=recommendServers(ev.guests);
 
-    let candidates=sorted.filter(e=>!isOnVacation(e,ev.date));
-    candidates.sort((a,b)=>prefScore(a.pref,ev.start)-prefScore(b.pref,ev.start));
+    let candidates=sorted
+      .filter(e=>!isOnVacation(e,ev.date))
+      .sort((a,b)=>prefScore(a.pref,ev.start)-prefScore(b.pref,ev.start));
 
     let used=0;
     candidates.forEach(emp=>{
@@ -201,13 +242,15 @@ function renderSchedule(s){
   html+="</tr>";
 
   employees.forEach(emp=>{
-    html+=`<tr><td class="employee-row">${emp.name}</td>`;
+    html+=`<tr><td class="employee-row">#${emp.seniority} ${emp.name}</td>`;
     week.forEach(d=>{
       if(isOnVacation(emp,d)){
         html+=`<td class="vacation">Vacation</td>`;
       } else if(s?.[emp.name]?.[d]){
         const sh=s[emp.name][d];
-        html+=`<td class="${shiftClass(sh.paid)}">${sh.start}-${sh.end}<br>${sh.schedH}h</td>`;
+        html+=`<td class="${shiftClass(sh.paid)}">
+          ${sh.start}-${sh.end}<br>${sh.schedH}h
+        </td>`;
       } else html+="<td></td>";
     });
     html+="</tr>";
@@ -216,7 +259,8 @@ function renderSchedule(s){
   schedule.innerHTML=html+"</table>";
 }
 
-renderEmployees(); renderEvents();
+renderEmployees();
+renderEvents();
 </script>
 
 </body>
