@@ -1,7 +1,6 @@
 let employees = [];
 let events = [];
 
-// Staffing ratios
 const staffingRatios = {
   cocktail: 30,
   buffet: 25,
@@ -9,14 +8,13 @@ const staffingRatios = {
   vip: 10
 };
 
-// Shift preference fallback order
 const shiftPriority = {
   morning: ["morning", "midday", "night"],
   midday: ["midday", "night", "morning"],
   night: ["night", "midday", "morning"]
 };
 
-// ADD EMPLOYEE
+// EMPLOYEES
 function addEmployee() {
   employees.push({
     name: empName.value,
@@ -25,68 +23,55 @@ function addEmployee() {
     preference: empPreference.value,
     hours: 0
   });
-
-  empName.value = "";
-  empSeniority.value = "";
-  empMaxHours.value = "";
-
+  empName.value = empSeniority.value = empMaxHours.value = "";
   renderEmployees();
 }
 
 function renderEmployees() {
   employeeTable.innerHTML = "";
-  employees
-    .sort((a, b) => b.seniority - a.seniority)
-    .forEach(e => {
-      employeeTable.innerHTML += `
-        <tr>
-          <td>${e.name}</td>
-          <td>${e.seniority}</td>
-          <td>${e.maxHours}</td>
-          <td>${e.preference}</td>
-          <td>${e.hours}</td>
-        </tr>`;
-    });
+  employees.sort((a,b)=>b.seniority-a.seniority).forEach(e=>{
+    employeeTable.innerHTML += `
+      <tr>
+        <td>${e.name}</td>
+        <td>${e.seniority}</td>
+        <td>${e.maxHours}</td>
+        <td>${e.preference}</td>
+        <td>${e.hours}</td>
+      </tr>`;
+  });
 }
 
-// RECOMMEND STAFFING
+// EVENTS
 function recommendStaff() {
   const guests = Number(eventGuests.value);
-  const type = eventType.value;
-  if (!guests || !type) return;
-
-  const base = Math.ceil(guests / staffingRatios[type]);
-
+  if (!guests) return;
+  const base = Math.ceil(guests / staffingRatios[eventType.value]);
   eventStaff.value = base;
   setupStaff.value = Math.max(1, Math.round(base * 0.4));
   cleanupStaff.value = Math.max(1, Math.round(base * 0.3));
 }
 
-// ADD EVENT
 function addEvent() {
   events.push({
     name: eventName.value,
     date: eventDate.value,
     guests: Number(eventGuests.value),
+    start: eventStart.value,
+    end: eventEnd.value,
     setup: Number(setupStaff.value),
     event: Number(eventStaff.value),
     cleanup: Number(cleanupStaff.value),
-    bigEvent: Number(eventGuests.value) >= 300
+    notes: { setup:"", event:"", cleanup:"" }
   });
-
-  eventName.value = "";
-  eventDate.value = "";
-  eventGuests.value = "";
-  setupStaff.value = "";
-  eventStaff.value = "";
-  cleanupStaff.value = "";
-
+  eventName.value = eventDate.value = eventGuests.value =
+  eventStart.value = eventEnd.value =
+  setupStaff.value = eventStaff.value = cleanupStaff.value = "";
   renderEvents();
 }
 
 function renderEvents() {
   eventTable.innerHTML = "";
-  events.forEach(e => {
+  events.forEach(e=>{
     eventTable.innerHTML += `
       <tr>
         <td>${e.name}</td>
@@ -99,42 +84,56 @@ function renderEvents() {
   });
 }
 
-// GENERATE SCHEDULE
-function generateSchedule() {
-  employees.forEach(e => e.hours = 0);
+// TIMELINE + WARNINGS
+function renderTimeline() {
+  const date = timelineDate.value;
+  const container = document.getElementById("timeline");
+  const warnings = document.getElementById("warnings");
+  container.innerHTML = "";
+  warnings.innerHTML = "";
 
-  let demand = {
-    morning: 0,
-    midday: 0,
-    night: 0
-  };
+  const dayEvents = events.filter(e => e.date === date);
+  if (!dayEvents.length) {
+    container.innerHTML = "<p>No events scheduled.</p>";
+    return;
+  }
 
-  events.forEach(e => {
-    demand.midday += e.setup * 2;
-    demand.night += e.event * 4;
-    demand.night += e.cleanup * 2;
+  generateWarnings();
 
-    if (e.bigEvent) {
-      demand.midday += e.setup * 2;
+  dayEvents.forEach(e=>{
+    container.innerHTML += `
+      <h3>${e.name}</h3>
+
+      <div class="block setup">
+        🛠 Setup (${e.setup} servers)
+        <textarea placeholder="Manager notes"></textarea>
+      </div>
+
+      <div class="block event">
+        🎉 Event ${e.start}–${e.end} (${e.event} servers)
+        <textarea placeholder="Manager notes"></textarea>
+      </div>
+
+      <div class="block cleanup">
+        🧹 Cleanup (${e.cleanup} servers)
+        <textarea placeholder="Manager notes"></textarea>
+      </div>
+    `;
+  });
+}
+
+// WARNINGS
+function generateWarnings() {
+  const warnings = document.getElementById("warnings");
+
+  employees.forEach(e=>{
+    if (e.hours > e.maxHours) {
+      warnings.innerHTML += `
+        <div class="warning">⚠ ${e.name} exceeds max hours</div>`;
+    }
+    if (e.seniority > 5 && e.hours < e.maxHours * 0.5) {
+      warnings.innerHTML += `
+        <div class="warning">⚠ Senior staff ${e.name} underutilized</div>`;
     }
   });
-
-  employees
-    .sort((a, b) => b.seniority - a.seniority)
-    .forEach(emp => {
-      let remaining = emp.maxHours;
-
-      for (const shift of shiftPriority[emp.preference]) {
-        if (remaining <= 0) break;
-        if (demand[shift] <= 0) continue;
-
-        const assign = Math.min(remaining, demand[shift]);
-        emp.hours += assign;
-        demand[shift] -= assign;
-        remaining -= assign;
-      }
-    });
-
-  renderEmployees();
-  alert("Schedule generated using seniority, preferences, and event demand.");
 }
