@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Seniority Scheduler</title>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
 body { font-family: Arial; background:#f5f5f5; padding:20px; }
 .section { background:#fff; padding:15px; border-radius:6px; margin-bottom:20px; }
@@ -12,13 +14,12 @@ input,select,button { padding:6px; margin:4px 0; }
 table { border-collapse:collapse; width:100%; margin-top:15px; }
 th,td { border:1px solid #ccc; padding:6px; text-align:center; }
 th { background:#eee; }
-.employee-row { font-weight:bold; }
+.employee-row { font-weight:bold; text-align:left; }
 
 .shift-4 { background:#c8f7c5; }
 .shift-6 { background:#ffd59e; }
 .shift-8 { background:#fff3a0; }
 .shift-ot { background:#d5b3ff; }
-
 .vacation { background:#ddd; color:#666; font-style:italic; }
 </style>
 </head>
@@ -63,6 +64,7 @@ To <input type="date" id="vacEnd">
 
 <div class="section">
 <button onclick="generateSchedule()">Generate Schedule</button>
+<button onclick="exportPDF()">Export PDF</button>
 </div>
 
 <div class="section">
@@ -71,8 +73,11 @@ To <input type="date" id="vacEnd">
 </div>
 
 <script>
+const { jsPDF } = window.jspdf;
+
 let employees = JSON.parse(localStorage.getItem("employees")) || [];
 let events = JSON.parse(localStorage.getItem("events")) || [];
+let lastSchedule = {};
 
 function save(){
   localStorage.setItem("employees",JSON.stringify(employees));
@@ -80,11 +85,8 @@ function save(){
 }
 
 function normalizeSeniority(){
-  const full = employees.filter(e=>e.type==="full");
-  const part = employees.filter(e=>e.type==="part");
-
-  full.sort((a,b)=>a.seniority-b.seniority);
-  part.sort((a,b)=>a.seniority-b.seniority);
+  const full = employees.filter(e=>e.type==="full").sort((a,b)=>a.seniority-b.seniority);
+  const part = employees.filter(e=>e.type==="part").sort((a,b)=>a.seniority-b.seniority);
 
   full.forEach((e,i)=>e.seniority=i+1);
   part.forEach((e,i)=>e.seniority=full.length+i+1);
@@ -94,26 +96,22 @@ function normalizeSeniority(){
 
 function addEmployee(){
   if(!empName.value) return alert("Name required");
-
-  const seniority = employees.length + 1;
-
   employees.push({
     name: empName.value,
     type: empType.value,
     pref: empPref.value,
-    seniority,
-    vacations: []
+    seniority: employees.length+1,
+    vacations:[]
   });
-
-  normalizeSeniority();
   empName.value="";
+  normalizeSeniority();
   save();
   renderEmployees();
 }
 
-function retireEmployee(index){
+function retireEmployee(i){
   if(!confirm("Retire this employee?")) return;
-  employees.splice(index,1);
+  employees.splice(i,1);
   normalizeSeniority();
   save();
   renderEmployees();
@@ -122,15 +120,11 @@ function retireEmployee(index){
 function renderEmployees(){
   employeeList.innerHTML="";
   vacEmp.innerHTML="";
-
   employees.forEach((e,i)=>{
-    employeeList.innerHTML += `
-      <li>
-        #${e.seniority} ${e.name}
-        (${e.type}, ${e.pref})
-        <button onclick="retireEmployee(${i})">Retire</button>
-      </li>`;
-    vacEmp.innerHTML += `<option>${e.name}</option>`;
+    employeeList.innerHTML+=`
+      <li>#${e.seniority} ${e.name} (${e.type}, ${e.pref})
+      <button onclick="retireEmployee(${i})">Retire</button></li>`;
+    vacEmp.innerHTML+=`<option>${e.name}</option>`;
   });
 }
 
@@ -139,7 +133,6 @@ function addVacation(){
   if(!e||!vacStart.value||!vacEnd.value) return;
   e.vacations.push({start:vacStart.value,end:vacEnd.value});
   save();
-  alert("Vacation added");
 }
 
 function addEvent(){
@@ -157,10 +150,8 @@ function renderEvents(){
   eventList.innerHTML="";
   events.forEach((e,i)=>{
     eventList.innerHTML+=`
-      <li>
-        ${e.date} ${e.start}-${e.end} (${e.guests})
-        <button onclick="events.splice(${i},1);save();renderEvents()">❌</button>
-      </li>`;
+      <li>${e.date} ${e.start}-${e.end} (${e.guests})
+      <button onclick="events.splice(${i},1);save();renderEvents()">❌</button></li>`;
   });
 }
 
@@ -184,32 +175,28 @@ function prefScore(pref,start){
 
 function generateSchedule(){
   let sched={};
-
   const sorted=[...employees].sort((a,b)=>a.seniority-b.seniority);
 
   events.forEach(ev=>{
     const start=new Date(ev.date+"T"+ev.start);
     const end=new Date(ev.date+"T"+ev.end);
-
     let paid=Math.max(4,Math.min(8,(end-start)/3600000));
     let schedH=paid>4?paid+0.5:paid;
     let need=recommendServers(ev.guests);
 
-    let candidates=sorted
+    sorted
       .filter(e=>!isOnVacation(e,ev.date))
-      .sort((a,b)=>prefScore(a.pref,ev.start)-prefScore(b.pref,ev.start));
-
-    let used=0;
-    candidates.forEach(emp=>{
-      if(used>=need) return;
-      if(!sched[emp.name]) sched[emp.name]={};
-      if(sched[emp.name][ev.date]) return;
-
-      sched[emp.name][ev.date]={start:ev.start,end:ev.end,paid,schedH};
-      used++;
-    });
+      .sort((a,b)=>prefScore(a.pref,ev.start)-prefScore(b.pref,ev.start))
+      .forEach(emp=>{
+        if(need<=0) return;
+        if(!sched[emp.name]) sched[emp.name]={};
+        if(sched[emp.name][ev.date]) return;
+        sched[emp.name][ev.date]={start:ev.start,end:ev.end,paid,schedH};
+        need--;
+      });
   });
 
+  lastSchedule = sched;
   renderSchedule(sched);
 }
 
@@ -221,12 +208,6 @@ function getWeek(){
     const d=new Date(m); d.setDate(m.getDate()+i);
     return d.toISOString().split("T")[0];
   });
-}
-
-function shiftClass(p){
-  if(p>=8) return "shift-8";
-  if(p>=6) return "shift-6";
-  return "shift-4";
 }
 
 function renderSchedule(s){
@@ -244,19 +225,24 @@ function renderSchedule(s){
   employees.forEach(emp=>{
     html+=`<tr><td class="employee-row">#${emp.seniority} ${emp.name}</td>`;
     week.forEach(d=>{
-      if(isOnVacation(emp,d)){
-        html+=`<td class="vacation">Vacation</td>`;
-      } else if(s?.[emp.name]?.[d]){
+      if(isOnVacation(emp,d)) html+=`<td class="vacation">Vacation</td>`;
+      else if(s?.[emp.name]?.[d]){
         const sh=s[emp.name][d];
-        html+=`<td class="${shiftClass(sh.paid)}">
-          ${sh.start}-${sh.end}<br>${sh.schedH}h
-        </td>`;
+        html+=`<td class="shift-${sh.paid}">${sh.start}-${sh.end}<br>${sh.schedH}h</td>`;
       } else html+="<td></td>";
     });
     html+="</tr>";
   });
 
   schedule.innerHTML=html+"</table>";
+}
+
+function exportPDF(){
+  const doc=new jsPDF({orientation:"landscape"});
+  doc.html(document.querySelector("#schedule"),{
+    callback:()=>doc.save("schedule.pdf"),
+    x:10,y:10,width:270
+  });
 }
 
 renderEmployees();
