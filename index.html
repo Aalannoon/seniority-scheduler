@@ -65,6 +65,14 @@ th { background:#4e9af1; color:#fff; }
 .shift-65 { background:#f1c40f; color:#000; }
 .shift-85 { background:#9b59b6; }
 
+/* CONFLICT */
+.conflict {
+  background: #e74c3c !important;
+  color: #fff;
+  font-weight: bold;
+  cursor: help;
+}
+
 /* TABS */
 .tab { display:none; }
 .tab.active { display:block; }
@@ -143,14 +151,13 @@ th { background:#4e9af1; color:#fff; }
 
 <button onclick="changeWeek(-1)">⬅ Previous Week</button>
 <button onclick="changeWeek(1)">Next Week ➡</button>
-<button onclick="generateSchedule(true)">Generate</button>
+<button onclick="generateSchedule()">Generate</button>
 <button onclick="regenerateSchedule()">Regenerate</button>
 
 <table id="scheduleTable"></table>
 </div>
 
 <script>
-/* 🔒 Feature gate (paid later) */
 const PRO_ENABLED = true;
 
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
@@ -194,17 +201,12 @@ function addEmployee(){
 }
 
 function rebalanceSeniority(){
-  employees
-    .filter(e=>!e.retired)
+  employees.filter(e=>!e.retired)
     .sort((a,b)=>a.seniority-b.seniority)
     .forEach((e,i)=>e.seniority=i+1);
 }
 
 function retireEmployee(id){
-  if(!PRO_ENABLED){
-    alert("Retirement & auto-seniority is a Pro feature.");
-    return;
-  }
   if(!confirm("Retire this employee?")) return;
   const emp = employees.find(e=>e.id===id);
   emp.retired = true;
@@ -214,35 +216,28 @@ function retireEmployee(id){
 
 function renderEmployees(){
   employeesTable.innerHTML="";
-  employees
-    .sort((a,b)=>a.seniority-b.seniority)
-    .forEach((e,i)=>{
-      employeesTable.innerHTML+=`
-      <tr class="${e.retired?'status-retired':''}">
-        <td>${e.name}</td>
-        <td>${e.type}</td>
-        <td>${e.retired ? '-' : e.seniority}</td>
-        <td>${e.pref||"-"}</td>
-        <td><input type="checkbox" ${e.vacation?"checked":""} ${e.retired?"disabled":""}
-          onchange="employees[${i}].vacation=this.checked;save();generateSchedule()"></td>
-        <td><input type="checkbox" ${e.sick?"checked":""} ${e.retired?"disabled":""}
-          onchange="employees[${i}].sick=this.checked;save();generateSchedule()"></td>
-        <td>
-          ${e.retired ? "—" : `<button class="retire" onclick="retireEmployee('${e.id}')">Retire</button>`}
-        </td>
-      </tr>`;
-    });
+  employees.sort((a,b)=>a.seniority-b.seniority).forEach((e,i)=>{
+    employeesTable.innerHTML+=`
+    <tr class="${e.retired?'status-retired':''}">
+      <td>${e.name}</td>
+      <td>${e.type}</td>
+      <td>${e.retired?'-':e.seniority}</td>
+      <td>${e.pref||"-"}</td>
+      <td><input type="checkbox" ${e.vacation?"checked":""} ${e.retired?"disabled":""}
+        onchange="employees[${i}].vacation=this.checked;save();generateSchedule()"></td>
+      <td><input type="checkbox" ${e.sick?"checked":""} ${e.retired?"disabled":""}
+        onchange="employees[${i}].sick=this.checked;save();generateSchedule()"></td>
+      <td>${e.retired?"—":`<button class="retire" onclick="retireEmployee('${e.id}')">Retire</button>`}</td>
+    </tr>`;
+  });
 }
 
-/* EVENTS (unchanged logic) */
+/* EVENTS (unchanged) */
 function addEvent(){
   if(editingEventId){
     Object.assign(events.find(e=>e.id===editingEventId), readEventForm());
     editingEventId=null;
-  } else {
-    events.push({ id:crypto.randomUUID(), ...readEventForm() });
-  }
-  clearEventForm();
+  } else events.push({ id:crypto.randomUUID(), ...readEventForm() });
   save(); renderEvents(); generateSchedule();
 }
 
@@ -258,21 +253,14 @@ function readEventForm(){
   };
 }
 
-function clearEventForm(){
-  eventName.value=eventDate.value=eventStart.value=eventEnd.value="";
-  eventGuests.value=eventStaff.value="";
-}
-
 function renderEvents(){
   eventsTable.innerHTML="";
   events.forEach(ev=>{
     eventsTable.innerHTML+=`
     <tr>
-      <td>${ev.name}</td>
-      <td>${ev.date}</td>
+      <td>${ev.name}</td><td>${ev.date}</td>
       <td>${ev.start}–${ev.end}</td>
-      <td>${ev.guests}</td>
-      <td>${ev.service}</td>
+      <td>${ev.guests}</td><td>${ev.service}</td>
       <td>${ev.staff}</td>
       <td><button onclick="editEvent('${ev.id}')">Edit</button></td>
       <td><button class="delete" onclick="deleteEvent('${ev.id}')">X</button></td>
@@ -280,39 +268,16 @@ function renderEvents(){
   });
 }
 
-function editEvent(id){
-  const ev=events.find(e=>e.id===id);
-  editingEventId=id;
-  eventName.value=ev.name;
-  eventDate.value=ev.date;
-  eventStart.value=ev.start;
-  eventEnd.value=ev.end;
-  eventGuests.value=ev.guests;
-  eventService.value=ev.service;
-  eventStaff.value=ev.staff;
-}
-
-function deleteEvent(id){
-  if(!confirm("Delete event?")) return;
-  events=events.filter(e=>e.id!==id);
-  save(); renderEvents(); generateSchedule();
-}
-
 /* WEEK + SCHEDULE */
+const iso=d=>d.toISOString().split("T")[0];
+
 function getWeekStart(){
   const d=new Date();
-  d.setDate(d.getDate() + currentWeekOffset*7);
-  const day=d.getDay();
-  const diff=day===0?-6:1-day;
+  d.setDate(d.getDate()+currentWeekOffset*7);
+  const diff=d.getDay()===0?-6:1-d.getDay();
   d.setDate(d.getDate()+diff);
   d.setHours(0,0,0,0);
   return d;
-}
-const iso=d=>d.toISOString().split("T")[0];
-
-function changeWeek(delta){
-  currentWeekOffset+=delta;
-  generateSchedule(true);
 }
 
 function normalizeHours(start,end){
@@ -339,19 +304,38 @@ function generateSchedule(){
   employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0;
     let row=`<tr><td>${emp.name}</td>`;
+
     days.forEach(d=>{
+      let conflicts=[];
       const ev=events.find(e=>e.date===iso(d));
-      if(emp.vacation) return row+=`<td class="status-vacation">Vacation</td>`;
-      if(emp.sick) return row+=`<td class="status-sick">Sick</td>`;
-      if(!ev) return row+="<td></td>";
+
+      if(emp.vacation) conflicts.push("Employee on vacation");
+      if(emp.sick) conflicts.push("Employee is sick");
+
+      if(!ev){
+        row+="<td></td>";
+        return;
+      }
+
       const startHour=parseInt(ev.start);
-      if(emp.pref==="AM" && startHour>=12) return row+="<td></td>";
-      if(emp.pref==="PM" && startHour<12) return row+="<td></td>";
+      if(emp.pref==="AM" && startHour>=12) conflicts.push("PM shift conflicts with AM preference");
+      if(emp.pref==="PM" && startHour<12) conflicts.push("AM shift conflicts with PM preference");
+
+      if(conflicts.length){
+        row+=`<td class="conflict" title="${conflicts.join(" | ")}">⚠️</td>`;
+        return;
+      }
+
       const s=normalizeHours(ev.start,ev.end);
       total+=s.h;
       row+=`<td class="${s.cls}">${s.h}h</td>`;
     });
-    row+=`<td><strong>${total}h</strong></td></tr>`;
+
+    let totalCell = total>40
+      ? `<td class="conflict" title="Weekly hours exceed 40">${total}h ⚠️</td>`
+      : `<td><strong>${total}h</strong></td>`;
+
+    row+=totalCell+"</tr>";
     scheduleTable.innerHTML+=row;
   });
 }
