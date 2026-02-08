@@ -1,26 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Seniority Scheduler</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h2 { margin-top: 30px; }
-    input, select, button { margin: 4px 0; padding: 6px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    tr.vacation { background: #ffecec; }
-    tr.parttime { background: #f5f5f5; }
-    .modal {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.4);
-      align-items: center; justify-content: center;
-    }
-    .modal-content {
-      background: white; padding: 20px; width: 300px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seniority Scheduler</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; }
+h2 { margin-top: 30px; }
+input, select, button { margin: 4px 0; padding: 6px; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+.vacation { background:#ffecec; }
+.parttime { background:#f5f5f5; }
+.modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; }
+.modal-content { background:#fff; padding:20px; width:300px; }
+.schedule { background:#eef; }
+</style>
 </head>
 <body>
 
@@ -41,17 +36,12 @@
 
 <h2>Employees</h2>
 <table>
-  <thead>
-    <tr>
-      <th>Seniority</th>
-      <th>Name</th>
-      <th>Type</th>
-      <th>Preference</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody id="employeeTable"></tbody>
+<thead>
+<tr>
+<th>Seniority</th><th>Name</th><th>Type</th><th>Pref</th><th>Status</th><th>Actions</th>
+</tr>
+</thead>
+<tbody id="employeeTable"></tbody>
 </table>
 
 <h2>Add Event</h2>
@@ -64,155 +54,170 @@
 
 <h2>Events</h2>
 <table>
-  <thead>
-    <tr>
-      <th>Date</th>
-      <th>Name</th>
-      <th>Time</th>
-      <th>Servers Needed</th>
-    </tr>
-  </thead>
-  <tbody id="eventTable"></tbody>
+<thead>
+<tr><th>Date</th><th>Name</th><th>Time</th><th>Servers</th></tr>
+</thead>
+<tbody id="eventTable"></tbody>
+</table>
+
+<h2>Auto Schedule</h2>
+<button onclick="generateSchedule()">Generate Schedule</button>
+
+<table>
+<thead>
+<tr><th>Event</th><th>Employee</th><th>Hours</th></tr>
+</thead>
+<tbody id="scheduleTable"></tbody>
 </table>
 
 <!-- EDIT MODAL -->
 <div class="modal" id="editModal">
-  <div class="modal-content">
-    <h3>Edit Employee</h3>
-    <input id="editName">
-    <select id="editType">
-      <option value="full">Full Time</option>
-      <option value="part">Part Time</option>
-    </select>
-    <select id="editPref">
-      <option>Morning</option>
-      <option>Midday</option>
-      <option>Night</option>
-    </select>
-    <label>
-      <input type="checkbox" id="editVacation"> On Vacation
-    </label>
-    <br><br>
-    <button onclick="saveEdit()">Save</button>
-    <button onclick="retireEmployee()">Retire</button>
-    <button onclick="closeModal()">Cancel</button>
-  </div>
+<div class="modal-content">
+<h3>Edit Employee</h3>
+<input id="editName">
+<select id="editType">
+<option value="full">Full Time</option>
+<option value="part">Part Time</option>
+</select>
+<select id="editPref">
+<option>Morning</option><option>Midday</option><option>Night</option>
+</select>
+<label><input type="checkbox" id="editVacation"> On Vacation</label><br><br>
+<button onclick="saveEdit()">Save</button>
+<button onclick="retireEmployee()">Retire</button>
+<button onclick="closeModal()">Cancel</button>
+</div>
 </div>
 
 <script>
-let employees = JSON.parse(localStorage.getItem("employees") || "[]");
-let events = JSON.parse(localStorage.getItem("events") || "[]");
-let editingIndex = null;
+let employees = JSON.parse(localStorage.getItem("employees")||"[]");
+let events = JSON.parse(localStorage.getItem("events")||"[]");
+let editingIndex=null;
 
-function saveAll() {
-  localStorage.setItem("employees", JSON.stringify(employees));
-  localStorage.setItem("events", JSON.stringify(events));
+function saveAll(){
+  localStorage.setItem("employees",JSON.stringify(employees));
+  localStorage.setItem("events",JSON.stringify(events));
 }
 
-function reorderSeniority() {
-  const full = employees.filter(e => e.type === "full");
-  const part = employees.filter(e => e.type === "part");
-  employees = [...full, ...part];
-  employees.forEach((e, i) => e.seniority = i + 1);
+function reorderSeniority(){
+  const full=employees.filter(e=>e.type==="full");
+  const part=employees.filter(e=>e.type==="part");
+  employees=[...full,...part];
+  employees.forEach((e,i)=>e.seniority=i+1);
 }
 
-function addEmployee() {
-  const name = empName.value.trim();
-  if (!name) return;
-  employees.push({
-    name,
-    type: empType.value,
-    pref: empPref.value,
-    vacation: false
-  });
-  reorderSeniority();
-  saveAll();
-  renderEmployees();
-  empName.value = "";
+function addEmployee(){
+  if(!empName.value.trim())return;
+  employees.push({name:empName.value,type:empType.value,pref:empPref.value,vacation:false});
+  reorderSeniority(); saveAll(); renderEmployees(); empName.value="";
 }
 
-function renderEmployees() {
-  employeeTable.innerHTML = "";
-  employees.forEach((e, i) => {
-    const tr = document.createElement("tr");
-    if (e.vacation) tr.classList.add("vacation");
-    if (e.type === "part") tr.classList.add("parttime");
-    tr.innerHTML = `
-      <td>${e.seniority}</td>
-      <td>${e.name}</td>
-      <td>${e.type}</td>
-      <td>${e.pref}</td>
-      <td>${e.vacation ? "Vacation" : "Active"}</td>
-      <td><button onclick="openEdit(${i})">Edit</button></td>
-    `;
+function renderEmployees(){
+  employeeTable.innerHTML="";
+  employees.forEach((e,i)=>{
+    const tr=document.createElement("tr");
+    if(e.vacation)tr.classList.add("vacation");
+    if(e.type==="part")tr.classList.add("parttime");
+    tr.innerHTML=`
+    <td>${e.seniority}</td><td>${e.name}</td><td>${e.type}</td>
+    <td>${e.pref}</td><td>${e.vacation?"Vacation":"Active"}</td>
+    <td><button onclick="openEdit(${i})">Edit</button></td>`;
     employeeTable.appendChild(tr);
   });
 }
 
-function openEdit(i) {
-  editingIndex = i;
-  const e = employees[i];
-  editName.value = e.name;
-  editType.value = e.type;
-  editPref.value = e.pref;
-  editVacation.checked = e.vacation;
-  editModal.style.display = "flex";
+function openEdit(i){
+  editingIndex=i;
+  const e=employees[i];
+  editName.value=e.name;
+  editType.value=e.type;
+  editPref.value=e.pref;
+  editVacation.checked=e.vacation;
+  editModal.style.display="flex";
+}
+function closeModal(){editModal.style.display="none";}
+function saveEdit(){
+  const e=employees[editingIndex];
+  e.name=editName.value;
+  e.type=editType.value;
+  e.pref=editPref.value;
+  e.vacation=editVacation.checked;
+  reorderSeniority(); saveAll(); renderEmployees(); closeModal();
+}
+function retireEmployee(){
+  if(!confirm("Retire employee?"))return;
+  employees.splice(editingIndex,1);
+  reorderSeniority(); saveAll(); renderEmployees(); closeModal();
 }
 
-function closeModal() {
-  editModal.style.display = "none";
-}
-
-function saveEdit() {
-  const e = employees[editingIndex];
-  e.name = editName.value;
-  e.type = editType.value;
-  e.pref = editPref.value;
-  e.vacation = editVacation.checked;
-  reorderSeniority();
-  saveAll();
-  renderEmployees();
-  closeModal();
-}
-
-function retireEmployee() {
-  if (!confirm("Retire this employee?")) return;
-  employees.splice(editingIndex, 1);
-  reorderSeniority();
-  saveAll();
-  renderEmployees();
-  closeModal();
-}
-
-function addEvent() {
+function addEvent(){
   events.push({
-    name: eventName.value,
-    date: eventDate.value,
-    start: eventStart.value,
-    end: eventEnd.value,
-    servers: eventServers.value
+    name:eventName.value,
+    date:eventDate.value,
+    start:eventStart.value,
+    end:eventEnd.value,
+    servers:Number(eventServers.value)
   });
-  saveAll();
-  renderEvents();
+  saveAll(); renderEvents();
 }
 
-function renderEvents() {
-  eventTable.innerHTML = "";
-  events.forEach(e => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${e.date}</td>
-      <td>${e.name}</td>
-      <td>${e.start} - ${e.end}</td>
-      <td>${e.servers}</td>
-    `;
+function renderEvents(){
+  eventTable.innerHTML="";
+  events.forEach(e=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${e.date}</td><td>${e.name}</td>
+    <td>${e.start}-${e.end}</td><td>${e.servers}</td>`;
     eventTable.appendChild(tr);
   });
 }
 
-renderEmployees();
-renderEvents();
-</script>
+function hoursBetween(a,b){
+  return (new Date("1970-01-01T"+b)-new Date("1970-01-01T"+a))/36e5;
+}
 
+function generateSchedule(){
+  scheduleTable.innerHTML="";
+  let hoursWorked={};
+  employees.forEach(e=>hoursWorked[e.name]=0);
+
+  events.forEach(ev=>{
+    let needed=ev.servers;
+    const evHours=hoursBetween(ev.start,ev.end);
+
+    let pool=employees
+      .filter(e=>!e.vacation)
+      .sort((a,b)=>{
+        if(a.pref===b.pref)return a.seniority-b.seniority;
+        if(a.pref===timeBucket(ev.start))return -1;
+        if(b.pref===timeBucket(ev.start))return 1;
+        return a.seniority-b.seniority;
+      });
+
+    for(const emp of pool){
+      if(needed<=0)break;
+      hoursWorked[emp.name]+=evHours;
+      const tr=document.createElement("tr");
+      tr.classList.add("schedule");
+      tr.innerHTML=`<td>${ev.name}</td><td>${emp.name}</td><td>${evHours}</td>`;
+      scheduleTable.appendChild(tr);
+      needed--;
+    }
+    if(needed>0){
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${ev.name}</td><td colspan="2">⚠ Not enough staff</td>`;
+      scheduleTable.appendChild(tr);
+    }
+  });
+}
+
+function timeBucket(t){
+  const h=Number(t.split(":")[0]);
+  if(h<12)return "Morning";
+  if(h<17)return "Midday";
+  return "Night";
+}
+
+renderEmployees(); renderEvents();
+</script>
 </body>
 </html>
