@@ -53,21 +53,21 @@ th {
   font-weight: bold;
 }
 
-/* 🎨 COLOR CODING */
+/* 🎨 COLOR CODING (BASED ON PAID HOURS) */
 .shift-4 {
-  background: #c8f7c5; /* green */
+  background: #c8f7c5;
 }
 
 .shift-6 {
-  background: #ffd59e; /* orange */
+  background: #ffd59e;
 }
 
 .shift-8 {
-  background: #fff3a0; /* yellow */
+  background: #fff3a0;
 }
 
 .shift-ot {
-  background: #d5b3ff; /* purple (manual only later) */
+  background: #d5b3ff;
 }
 </style>
 </head>
@@ -191,10 +191,13 @@ function generateSchedule() {
   events.forEach(event => {
     const start = new Date(event.date + "T" + event.start);
     const end = new Date(event.date + "T" + event.end);
-    let hours = (end - start) / 3600000;
+    let paidHours = (end - start) / 3600000;
 
-    // Minimum 4 hours per day
-    hours = Math.max(hours, 4);
+    paidHours = Math.max(paidHours, 4);
+    paidHours = Math.min(paidHours, 8);
+
+    const scheduledHours =
+      paidHours > 4 ? paidHours + 0.5 : paidHours;
 
     const needed = recommendServers(event.guests);
     let assigned = 0;
@@ -208,7 +211,8 @@ function generateSchedule() {
         schedule[emp.name][event.date] = {
           start: event.start,
           end: event.end,
-          hours: hours
+          paidHours,
+          scheduledHours
         };
       } else {
         const existing = schedule[emp.name][event.date];
@@ -216,8 +220,11 @@ function generateSchedule() {
         existing.start = existing.start < event.start ? existing.start : event.start;
         existing.end = existing.end > event.end ? existing.end : event.end;
 
-        // 🔒 CAP AT 8 HOURS — NO AUTO OT
-        existing.hours = Math.min(existing.hours + hours, 8);
+        existing.paidHours = Math.min(existing.paidHours + paidHours, 8);
+        existing.scheduledHours =
+          existing.paidHours > 4
+            ? existing.paidHours + 0.5
+            : existing.paidHours;
       }
 
       assigned++;
@@ -227,9 +234,9 @@ function generateSchedule() {
   renderSchedule();
 }
 
-function getShiftClass(hours) {
-  if (hours >= 8) return "shift-8";
-  if (hours >= 6) return "shift-6";
+function getShiftClass(paid) {
+  if (paid >= 8) return "shift-8";
+  if (paid >= 6) return "shift-6";
   return "shift-4";
 }
 
@@ -237,15 +244,14 @@ function renderSchedule() {
   const weekDates = getWeekDates();
   const header = new Date(weekDates[0]);
 
-  document.getElementById("scheduleHeader").textContent =
+  scheduleHeader.textContent =
     header.toLocaleString("default", { month: "long", year: "numeric" });
 
   let html = "<table><tr><th>Employee</th>";
 
   weekDates.forEach(d => {
     const dateObj = new Date(d);
-    const day = dateObj.toLocaleDateString("default", { weekday: "short" });
-    html += `<th>${day} ${dateObj.getDate()}</th>`;
+    html += `<th>${dateObj.toLocaleDateString("default", { weekday: "short" })} ${dateObj.getDate()}</th>`;
   });
 
   html += "</tr>";
@@ -253,11 +259,11 @@ function renderSchedule() {
   employees.forEach(emp => {
     html += `<tr><td class="employee-row">${emp.name}</td>`;
     weekDates.forEach(d => {
-      const entry = schedule[emp.name]?.[d];
-      if (entry) {
-        const cls = getShiftClass(entry.hours);
-        html += `<td class="${cls}">
-          ${entry.start}–${entry.end}<br>${entry.hours.toFixed(1)}h
+      const s = schedule[emp.name]?.[d];
+      if (s) {
+        html += `<td class="${getShiftClass(s.paidHours)}">
+          ${s.start}–${s.end}<br>
+          ${s.scheduledHours.toFixed(1)}h
         </td>`;
       } else {
         html += "<td></td>";
@@ -267,7 +273,7 @@ function renderSchedule() {
   });
 
   html += "</table>";
-  document.getElementById("schedule").innerHTML = html;
+  schedule.innerHTML = html;
 }
 
 function getWeekDates() {
@@ -275,13 +281,11 @@ function getWeekDates() {
   const monday = new Date(today);
   monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
 
-  let dates = [];
-  for (let i = 0; i < 7; i++) {
+  return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    dates.push(d.toISOString().split("T")[0]);
-  }
-  return dates;
+    return d.toISOString().split("T")[0];
+  });
 }
 
 renderEmployees();
