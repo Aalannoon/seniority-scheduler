@@ -10,6 +10,7 @@ body {
   margin: 20px;
   background: #1e1e2f;
   color: #f0f0f0;
+  transition: background 0.3s, color 0.3s;
 }
 body.light-mode { background:#f8f9fa; color:#333; }
 
@@ -17,58 +18,69 @@ h1 { font-size:28px; margin-bottom:10px; }
 h2 { margin-top:20px; margin-bottom:10px; }
 
 /* TABS */
-.tabs { display:flex; gap:6px; margin-bottom:12px; }
+.tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
 .tabs button {
   padding:8px 14px;
+  cursor:pointer;
   border:none;
   border-radius:8px;
   font-weight:bold;
-  cursor:pointer;
+  transition:0.2s;
 }
 .tabs button.active { background:#4e9af1; color:#fff; }
+body.dark-mode .tabs button { background:#2e2e3d; color:#ccc; }
+body.dark-mode .tabs button.active { background:#4e9af1; color:#fff; }
 
-/* INPUTS */
+/* INPUTS & BUTTONS */
 input, select, button {
+  margin-right:6px;
+  margin-bottom:6px;
   padding:6px 10px;
   border-radius:6px;
   border:none;
-  margin:4px;
+  font-size:14px;
 }
-button { background:#4e9af1; color:#fff; font-weight:bold; }
+button {
+  font-weight:bold;
+  background:#4e9af1;
+  color:#fff;
+  transition:0.2s;
+}
+button:hover { opacity:0.85; transform: translateY(-2px); }
 
 /* TABLES */
 table {
-  width:100%;
   border-collapse:collapse;
+  width:100%;
   margin-top:10px;
 }
 th, td {
-  padding:8px;
+  padding:10px;
   text-align:center;
   border-bottom:1px solid #444;
 }
-th { background:#4e9af1; color:#fff; }
-
-.employee-row td { border-top:3px solid #888; }
-
-/* SHIFT COLORS */
-.shift-4 { background:#2ecc71; }
-.shift-6 { background:#e67e22; }
-.shift-8 { background:#f1c40f; color:#000; }
-.shift-ot { background:#9b59b6; }
+th {
+  background:#4e9af1;
+  color:#fff;
+}
 
 /* STATUS */
-.status-vacation { background:#7f8c8d; font-style:italic; }
-.status-sick { background:#c0392b; font-style:italic; }
+.status-vacation { background:#7f8c8d; color:#fff; font-weight:bold; }
+.status-sick { background:#c0392b; color:#fff; font-weight:bold; }
 
-/* TABS */
+/* SHIFTS */
+.shift-4 { background:#2ecc71; color:#fff; }
+.shift-6 { background:#e67e22; color:#fff; }
+.shift-65 { background:#f1c40f; color:#000; }
+.shift-85 { background:#9b59b6; color:#fff; }
+
+/* TAB VISIBILITY */
 .tab { display:none; }
 .tab.active { display:block; }
 </style>
 </head>
 
 <body>
-
 <h1 id="weekHeader"></h1>
 <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
 
@@ -76,21 +88,16 @@ th { background:#4e9af1; color:#fff; }
   <button id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
   <button id="tabEvBtn" onclick="showTab('eventsTab')">Events</button>
   <button id="tabSchBtn" onclick="showTab('scheduleTab')">Schedule</button>
-  <button onclick="window.print()">Export PDF</button>
 </div>
 
 <!-- EMPLOYEES -->
 <div id="employeesTab" class="tab">
 <h2>Employees</h2>
-
-<input id="empName" placeholder="Name">
-<select id="empType">
-  <option value="FT">FT</option>
-  <option value="PT">PT</option>
-</select>
-<input id="empSeniority" type="number" placeholder="Seniority">
+<input id="empName" placeholder="Name" />
+<select id="empType"><option>FT</option><option>PT</option></select>
+<input id="empSeniority" type="number" placeholder="Seniority" />
 <select id="empPref">
-  <option value="">No Preference</option>
+  <option value="">No Pref</option>
   <option value="AM">AM</option>
   <option value="PM">PM</option>
 </select>
@@ -98,9 +105,7 @@ th { background:#4e9af1; color:#fff; }
 
 <table>
 <thead>
-<tr>
-<th>Name</th><th>Type</th><th>Seniority</th><th>Pref</th><th>Vac</th><th>Sick</th>
-</tr>
+<tr><th>Name</th><th>Type</th><th>Seniority</th><th>Pref</th><th>Vacation</th><th>Sick</th></tr>
 </thead>
 <tbody id="employeesTable"></tbody>
 </table>
@@ -109,29 +114,25 @@ th { background:#4e9af1; color:#fff; }
 <!-- EVENTS -->
 <div id="eventsTab" class="tab">
 <h2>Events</h2>
-
-<input id="eventName" placeholder="Event Name">
-
-<select id="eventType">
-  <option value="Plated Service">Plated Service</option>
-  <option value="Buffet Service">Buffet Service</option>
-  <option value="Reception">Reception</option>
-  <option value="Coffee Break">Coffee Break</option>
+<input id="eventName" placeholder="Event Name" />
+<input id="eventDate" type="date" />
+<input id="eventStart" type="time" />
+<input id="eventEnd" type="time" />
+<input id="eventGuests" type="number" placeholder="Guests" />
+<select id="eventService">
+  <option>Plated Service</option>
+  <option>Buffet Service</option>
+  <option>Reception</option>
+  <option>Coffee Break</option>
 </select>
-
-<input id="eventDate" type="date">
-<input id="eventStart" type="time">
-<input id="eventEnd" type="time">
-<input id="eventGuests" type="number" placeholder="Guests">
-<input id="eventStaff" type="number" placeholder="Staff Needed">
+<input id="eventStaff" type="number" placeholder="Staff Needed" />
 <button onclick="addEvent()">Add Event</button>
 
 <table>
 <thead>
 <tr>
-<th>Name</th><th>Service</th><th>Date</th>
-<th>Time</th><th>Guests</th>
-<th>Rec.</th><th>Staff</th><th>Delete</th>
+  <th>Name</th><th>Date</th><th>Time</th>
+  <th>Guests</th><th>Service</th><th>Staff</th>
 </tr>
 </thead>
 <tbody id="eventsTable"></tbody>
@@ -141,7 +142,7 @@ th { background:#4e9af1; color:#fff; }
 <!-- SCHEDULE -->
 <div id="scheduleTab" class="tab">
 <h2>Schedule</h2>
-<button onclick="generateSchedule()">Generate</button>
+<button onclick="generateSchedule()">Generate Schedule</button>
 <table id="scheduleTable"></table>
 </div>
 
@@ -154,6 +155,7 @@ function save(){
   localStorage.setItem("events",JSON.stringify(events));
 }
 
+/* TABS */
 function showTab(id){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   document.getElementById(id).classList.add("active");
@@ -175,7 +177,7 @@ function renderEmployees(){
   employeesTable.innerHTML="";
   employees.sort((a,b)=>a.seniority-b.seniority).forEach((e,i)=>{
     employeesTable.innerHTML+=`
-    <tr class="employee-row">
+    <tr>
       <td>${e.name}</td>
       <td>${e.type}</td>
       <td>${e.seniority}</td>
@@ -189,69 +191,75 @@ function renderEmployees(){
 }
 
 /* EVENTS */
-function recommendedServers(type, guests){
-  if(type==="Plated Service") return Math.ceil(guests/10);
-  if(type==="Buffet Service") return Math.ceil(guests/20);
-  if(type==="Reception") return Math.ceil(guests/25);
-  if(type==="Coffee Break") return Math.ceil(guests/40);
-  return 0;
-}
-
 function addEvent(){
-  const start=new Date(`1970-01-01T${eventStart.value}`);
-  const end=new Date(`1970-01-01T${eventEnd.value}`);
-  let hours=(end-start)/36e5;
-  if(hours>=6) hours+=0.5;
-
-  const rec=recommendedServers(eventType.value,+eventGuests.value);
-
   events.push({
     name:eventName.value,
-    type:eventType.value,
     date:eventDate.value,
     start:eventStart.value,
     end:eventEnd.value,
-    hours,
     guests:+eventGuests.value,
-    recommended:rec,
-    staff:+eventStaff.value||rec
+    service:eventService.value,
+    staff:+eventStaff.value
   });
   save(); renderEvents();
 }
-
 function renderEvents(){
   eventsTable.innerHTML="";
-  events.forEach((e,i)=>{
+  events.forEach(e=>{
     eventsTable.innerHTML+=`
     <tr>
       <td>${e.name}</td>
-      <td>${e.type}</td>
       <td>${e.date}</td>
       <td>${e.start}–${e.end}</td>
       <td>${e.guests}</td>
-      <td>${e.recommended}</td>
-      <td><input type="number" value="${e.staff}"
-        onchange="events[${i}].staff=+this.value;save()"></td>
-      <td><button onclick="events.splice(${i},1);save();renderEvents()">X</button></td>
+      <td>${e.service}</td>
+      <td>${e.staff}</td>
     </tr>`;
   });
+}
+
+/* 🔒 MINIMUM 4-HOUR RULE (FIX) */
+function normalizeHours(start,end){
+  const diff=(new Date(`1970-01-01T${end}`)-new Date(`1970-01-01T${start}`))/3600000;
+
+  if(diff <= 4) return {h:4, cls:"shift-4"};
+  if(diff < 6) return {h:6, cls:"shift-6"};
+  if(diff < 8) return {h:6.5, cls:"shift-65"};
+  return {h:8.5, cls:"shift-85"};
 }
 
 /* SCHEDULE */
 function generateSchedule(){
-  scheduleTable.innerHTML="<tr><th>Employee</th><th>Shift</th></tr>";
-  employees.sort((a,b)=>a.seniority-b.seniority).forEach(emp=>{
-    const ev=events[0];
-    if(!ev||emp.vacation||emp.sick) return;
-    scheduleTable.innerHTML+=`
-    <tr class="employee-row">
-      <td>${emp.name}</td>
-      <td class="shift-6">${ev.start}–${ev.end} (${ev.hours}h)</td>
-    </tr>`;
+  scheduleTable.innerHTML="";
+  const days=[...new Set(events.map(e=>e.date))];
+  scheduleTable.innerHTML="<tr><th>Employee</th>"+days.map(d=>`<th>${d}</th>`).join("")+"<th>Total</th></tr>";
+
+  employees.forEach(emp=>{
+    let total=0;
+    let row=`<tr><td>${emp.name}</td>`;
+
+    days.forEach(d=>{
+      if(emp.vacation) return row+=`<td class="status-vacation">Vacation</td>`;
+      if(emp.sick) return row+=`<td class="status-sick">Sick</td>`;
+
+      const ev=events.find(e=>e.date===d);
+      if(!ev) return row+="<td></td>";
+
+      const startHour=parseInt(ev.start);
+      if(emp.pref==="AM" && startHour>=12) return row+="<td></td>";
+      if(emp.pref==="PM" && startHour<12) return row+="<td></td>";
+
+      const shift=normalizeHours(ev.start,ev.end);
+      total+=shift.h;
+      row+=`<td class="${shift.cls}">${shift.h}h</td>`;
+    });
+
+    row+=`<td><strong>${total}h</strong></td></tr>`;
+    scheduleTable.innerHTML+=row;
   });
 }
 
-/* MODE */
+/* DARK MODE */
 function toggleDarkMode(){
   document.body.classList.toggle("light-mode");
 }
@@ -261,6 +269,5 @@ renderEmployees();
 renderEvents();
 showTab("employeesTab");
 </script>
-
 </body>
 </html>
