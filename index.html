@@ -2,31 +2,67 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fair Scheduler</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
   <h1>Fair Scheduler</h1>
 
-  <section>
-    <h2>Add Employee</h2>
-    <input id="name" placeholder="Name" />
-    <input id="seniority" type="number" placeholder="Years of service" />
-    <button onclick="addEmployee()">Add</button>
-  </section>
-
+  <!-- EMPLOYEES -->
   <section>
     <h2>Employees</h2>
-    <ul id="employeeList"></ul>
+
+    <input id="empName" placeholder="Name" />
+    <input id="empSeniority" type="number" placeholder="Seniority" />
+    <input id="empMaxHours" type="number" placeholder="Max Hours" />
+
+    <button onclick="addEmployee()">Add Employee</button>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Seniority</th>
+          <th>Max Hours</th>
+          <th>Assigned</th>
+        </tr>
+      </thead>
+      <tbody id="employeeTable"></tbody>
+    </table>
   </section>
 
+  <!-- EVENTS -->
   <section>
-    <button onclick="generateSchedule()">Generate Schedule</button>
+    <h2>Events</h2>
+
+    <input id="eventName" placeholder="Event Name" />
+    <input id="eventDate" type="date" />
+    <input id="eventStart" type="time" />
+    <input id="eventEnd" type="time" />
+    <input id="eventStaff" type="number" placeholder="Servers Needed" />
+
+    <button onclick="addEvent()">Add Event</button>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Servers</th>
+        </tr>
+      </thead>
+      <tbody id="eventTable"></tbody>
+    </table>
   </section>
 
+  <!-- SCHEDULING -->
   <section>
     <h2>Schedule</h2>
-    <pre id="scheduleOutput"></pre>
+    <button onclick="generateSchedule()">Generate Schedule</button>
+    <div id="scheduleOutput"></div>
   </section>
 
   <script src="script.js"></script>
