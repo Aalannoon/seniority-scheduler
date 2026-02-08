@@ -13,7 +13,7 @@ body {
 }
 body.light-mode { background:#f8f9fa; color:#333; }
 
-h1 { font-size:28px; margin-bottom:10px; }
+h1 { font-size:28px; }
 h2 { margin-top:20px; }
 
 /* TABS */
@@ -37,19 +37,21 @@ input, select, button {
   border:none;
 }
 button { background:#4e9af1; color:#fff; font-weight:bold; }
+button.delete { background:#c0392b; }
 
 /* TABLE */
 table { border-collapse:collapse; width:100%; margin-top:10px; }
 th, td {
-  padding:10px;
+  padding:8px;
   text-align:center;
   border-bottom:2px solid #444;
   border-right:2px solid #555;
 }
+th:first-child, td:first-child {
+  border-right:4px solid #888;
+  font-weight:bold;
+}
 th:last-child, td:last-child { border-right:none; }
-th:first-child, td:first-child { border-right:4px solid #888; font-weight:bold; }
-th:nth-last-child(2), td:nth-last-child(2) { border-right:4px solid #888; }
-
 th { background:#4e9af1; color:#fff; }
 
 /* STATUS */
@@ -94,7 +96,10 @@ th { background:#4e9af1; color:#fff; }
 
 <table>
 <thead>
-<tr><th>Name</th><th>Type</th><th>Seniority</th><th>Pref</th><th>Vacation</th><th>Sick</th></tr>
+<tr>
+  <th>Name</th><th>Type</th><th>Seniority</th><th>Pref</th>
+  <th>Vacation</th><th>Sick</th>
+</tr>
 </thead>
 <tbody id="employeesTable"></tbody>
 </table>
@@ -103,6 +108,7 @@ th { background:#4e9af1; color:#fff; }
 <!-- EVENTS -->
 <div id="eventsTab" class="tab">
 <h2>Events</h2>
+
 <input id="eventName" placeholder="Event Name" />
 <input id="eventDate" type="date" />
 <input id="eventStart" type="time" />
@@ -119,7 +125,11 @@ th { background:#4e9af1; color:#fff; }
 
 <table>
 <thead>
-<tr><th>Name</th><th>Date</th><th>Time</th><th>Guests</th><th>Service</th><th>Staff</th></tr>
+<tr>
+  <th>Name</th><th>Date</th><th>Time</th>
+  <th>Guests</th><th>Service</th><th>Staff</th>
+  <th>Edit</th><th>Delete</th>
+</tr>
 </thead>
 <tbody id="eventsTable"></tbody>
 </table>
@@ -133,12 +143,13 @@ th { background:#4e9af1; color:#fff; }
 </div>
 
 <script>
-let employees = JSON.parse(localStorage.getItem("employees")||"[]");
-let events = JSON.parse(localStorage.getItem("events")||"[]");
+let employees = JSON.parse(localStorage.getItem("employees") || "[]");
+let events = JSON.parse(localStorage.getItem("events") || "[]");
+let editingEventId = null;
 
 function save(){
-  localStorage.setItem("employees",JSON.stringify(employees));
-  localStorage.setItem("events",JSON.stringify(events));
+  localStorage.setItem("employees", JSON.stringify(employees));
+  localStorage.setItem("events", JSON.stringify(events));
 }
 
 /* TABS */
@@ -154,10 +165,10 @@ function showTab(id){
 /* EMPLOYEES */
 function addEmployee(){
   employees.push({
-    name:empName.value,
-    type:empType.value,
-    seniority:+empSeniority.value,
-    pref:empPref.value,
+    name: empName.value,
+    type: empType.value,
+    seniority: +empSeniority.value,
+    pref: empPref.value,
     vacation:false,
     sick:false
   });
@@ -182,7 +193,19 @@ function renderEmployees(){
 
 /* EVENTS */
 function addEvent(){
-  events.push({
+  if(editingEventId){
+    const ev = events.find(e=>e.id===editingEventId);
+    Object.assign(ev, readEventForm());
+    editingEventId=null;
+  } else {
+    events.push({ id: crypto.randomUUID(), ...readEventForm() });
+  }
+  clearEventForm();
+  save(); renderEvents(); generateSchedule();
+}
+
+function readEventForm(){
+  return {
     name:eventName.value,
     date:eventDate.value,
     start:eventStart.value,
@@ -190,27 +213,56 @@ function addEvent(){
     guests:+eventGuests.value,
     service:eventService.value,
     staff:+eventStaff.value
-  });
-  save(); renderEvents();
+  };
 }
+
+function clearEventForm(){
+  eventName.value="";
+  eventDate.value="";
+  eventStart.value="";
+  eventEnd.value="";
+  eventGuests.value="";
+  eventStaff.value="";
+  editingEventId=null;
+}
+
 function renderEvents(){
   eventsTable.innerHTML="";
-  events.forEach(e=>{
+  events.forEach(ev=>{
     eventsTable.innerHTML+=`
     <tr>
-      <td>${e.name}</td>
-      <td>${e.date}</td>
-      <td>${e.start}–${e.end}</td>
-      <td>${e.guests}</td>
-      <td>${e.service}</td>
-      <td>${e.staff}</td>
+      <td>${ev.name}</td>
+      <td>${ev.date}</td>
+      <td>${ev.start}–${ev.end}</td>
+      <td>${ev.guests}</td>
+      <td>${ev.service}</td>
+      <td>${ev.staff}</td>
+      <td><button onclick="editEvent('${ev.id}')">Edit</button></td>
+      <td><button class="delete" onclick="deleteEvent('${ev.id}')">X</button></td>
     </tr>`;
   });
 }
 
-/* WEEK (MON–SUN) */
-function getWeekStart(date=new Date()){
-  const d=new Date(date);
+function editEvent(id){
+  const ev = events.find(e=>e.id===id);
+  editingEventId=id;
+  Object.assign(eventName, {value:ev.name});
+  eventDate.value=ev.date;
+  eventStart.value=ev.start;
+  eventEnd.value=ev.end;
+  eventGuests.value=ev.guests;
+  eventService.value=ev.service;
+  eventStaff.value=ev.staff;
+}
+
+function deleteEvent(id){
+  if(!confirm("Delete this event?")) return;
+  events = events.filter(e=>e.id!==id);
+  save(); renderEvents(); generateSchedule();
+}
+
+/* WEEK */
+function getWeekStart(d=new Date()){
   const day=d.getDay();
   const diff=day===0?-6:1-day;
   d.setDate(d.getDate()+diff);
@@ -218,16 +270,14 @@ function getWeekStart(date=new Date()){
   return d;
 }
 function getWeekDays(){
-  const start=getWeekStart();
+  const s=getWeekStart();
   return Array.from({length:7},(_,i)=>{
-    const d=new Date(start);
-    d.setDate(start.getDate()+i);
-    return d;
+    const d=new Date(s); d.setDate(s.getDate()+i); return d;
   });
 }
-function iso(d){ return d.toISOString().split("T")[0]; }
+const iso=d=>d.toISOString().split("T")[0];
 
-/* HOURS RULE */
+/* HOURS */
 function normalizeHours(start,end){
   const diff=(new Date(`1970-01-01T${end}`)-new Date(`1970-01-01T${start}`))/3600000;
   if(diff<=4) return {h:4,cls:"shift-4"};
@@ -241,11 +291,6 @@ function generateSchedule(){
   scheduleTable.innerHTML="";
   const days=getWeekDays();
 
-  weekHeader.innerText =
-    days[0].toLocaleDateString(undefined,{month:"long",day:"numeric"}) +
-    " – " +
-    days[6].toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"});
-
   scheduleTable.innerHTML =
     "<tr><th>Employee</th>" +
     days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</th>`).join("") +
@@ -256,12 +301,10 @@ function generateSchedule(){
     let row=`<tr><td>${emp.name}</td>`;
 
     days.forEach(d=>{
-      const date=iso(d);
+      const ev = events.find(e=>e.date===iso(d));
       if(emp.vacation) return row+=`<td class="status-vacation">Vacation</td>`;
       if(emp.sick) return row+=`<td class="status-sick">Sick</td>`;
-
-      const ev=events.find(e=>e.date===date);
-      if(!ev) return row+="<td></td>";
+      if(!ev || !ev.start || !ev.end) return row+="<td></td>";
 
       const startHour=parseInt(ev.start);
       if(emp.pref==="AM" && startHour>=12) return row+="<td></td>";
