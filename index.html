@@ -38,20 +38,15 @@ input, select, button {
 button { background:#4e9af1; color:#fff; font-weight:bold; }
 button.delete { background:#c0392b; }
 button.retire { background:#8e44ad; }
+button.print { background:#27ae60; }
 
 /* TABLE */
 table { border-collapse:collapse; width:100%; margin-top:10px; }
 th, td {
   padding:8px;
   text-align:center;
-  border-right:2px solid #555;
-  border-bottom:2px solid #444;
+  border:1px solid #555;
 }
-th:first-child, td:first-child {
-  border-right:4px solid #888;
-  font-weight:bold;
-}
-th:last-child, td:last-child { border-right:none; }
 th { background:#4e9af1; color:#fff; }
 
 /* STATUS */
@@ -63,11 +58,33 @@ th { background:#4e9af1; color:#fff; }
 .shift-65 { background:#f1c40f; color:#000; }
 .shift-85 { background:#9b59b6; }
 
-/* CONFLICT */
-.conflict {
-  background: #e74c3c !important;
-  color: #fff;
-  font-weight: bold;
+/* PRINT / PDF */
+@media print {
+  body {
+    background:#fff;
+    color:#000;
+  }
+
+  .tabs,
+  button,
+  input,
+  select {
+    display:none !important;
+  }
+
+  h1 {
+    margin-bottom:10px;
+  }
+
+  table {
+    page-break-inside: avoid;
+    font-size:12px;
+  }
+
+  th {
+    background:#ddd !important;
+    color:#000 !important;
+  }
 }
 
 /* TABS */
@@ -79,7 +96,9 @@ th { background:#4e9af1; color:#fff; }
 <body>
 
 <h1 id="weekHeader"></h1>
+
 <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+<button class="print" onclick="printSchedule()">Print / Save PDF</button>
 
 <div class="tabs">
   <button id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
@@ -147,10 +166,12 @@ th { background:#4e9af1; color:#fff; }
 <!-- SCHEDULE -->
 <div id="scheduleTab" class="tab">
 <h2>Schedule</h2>
+
 <button onclick="changeWeek(-1)">⬅ Previous Week</button>
 <button onclick="changeWeek(1)">Next Week ➡</button>
 <button onclick="generateSchedule()">Generate</button>
 <button onclick="regenerateSchedule()">Regenerate</button>
+
 <table id="scheduleTable"></table>
 </div>
 
@@ -232,9 +253,6 @@ function autoRecommendStaff(){
   if(!guests) return;
 
   const service=eventService.value;
-  const start=eventStart.value;
-  const end=eventEnd.value;
-
   let ratio={
     "Plated Service":20,
     "Buffet Service":30,
@@ -242,14 +260,7 @@ function autoRecommendStaff(){
     "Coffee Break":50
   }[service] || 30;
 
-  let base=Math.ceil(guests/ratio);
-
-  if(start && end){
-    const hours=(new Date(`1970-01-01T${end}`)-new Date(`1970-01-01T${start}`))/3600000;
-    if(hours>4) base+=Math.ceil((hours-4)/2)*Math.ceil(base*0.1);
-  }
-
-  eventStaff.value=base;
+  eventStaff.value=Math.ceil(guests/ratio);
 }
 
 function addEvent(){
@@ -357,6 +368,7 @@ function regenerateSchedule(){
 
 function changeWeek(n){ currentWeekOffset+=n; generateSchedule(); }
 function toggleDarkMode(){ document.body.classList.toggle("light-mode"); }
+function printSchedule(){ showTab("scheduleTab"); setTimeout(()=>window.print(),200); }
 
 /* INIT */
 renderEmployees();
