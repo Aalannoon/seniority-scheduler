@@ -58,33 +58,16 @@ th { background:#4e9af1; color:#fff; }
 .shift-65 { background:#f1c40f; color:#000; }
 .shift-85 { background:#9b59b6; }
 
-/* PRINT / PDF */
+/* CLICKABLE CELLS */
+td[onclick] { cursor:pointer; }
+td[onclick]:hover { outline:2px dashed #4e9af1; }
+
+/* PRINT */
 @media print {
-  body {
-    background:#fff;
-    color:#000;
-  }
-
-  .tabs,
-  button,
-  input,
-  select {
-    display:none !important;
-  }
-
-  h1 {
-    margin-bottom:10px;
-  }
-
-  table {
-    page-break-inside: avoid;
-    font-size:12px;
-  }
-
-  th {
-    background:#ddd !important;
-    color:#000 !important;
-  }
+  body { background:#fff; color:#000; }
+  .tabs, button, input, select { display:none !important; }
+  table { font-size:12px; }
+  th { background:#ddd !important; color:#000 !important; }
 }
 
 /* TABS */
@@ -178,13 +161,14 @@ th { background:#4e9af1; color:#fff; }
 <script>
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
+let manualEdits = JSON.parse(localStorage.getItem("manualEdits") || "{}");
 let editingEventId = null;
 let currentWeekOffset = 0;
 
-/* SAVE */
 function save(){
   localStorage.setItem("employees", JSON.stringify(employees));
   localStorage.setItem("events", JSON.stringify(events));
+  localStorage.setItem("manualEdits", JSON.stringify(manualEdits));
 }
 
 /* TABS */
@@ -194,10 +178,7 @@ function showTab(id){
   document.getElementById(id).classList.add("active");
   if(id==="employeesTab") tabEmpBtn.classList.add("active");
   if(id==="eventsTab") tabEvBtn.classList.add("active");
-  if(id==="scheduleTab") {
-    tabSchBtn.classList.add("active");
-    generateSchedule();
-  }
+  if(id==="scheduleTab") { tabSchBtn.classList.add("active"); generateSchedule(); }
 }
 
 /* EMPLOYEES */
@@ -238,9 +219,9 @@ function renderEmployees(){
       <td>${e.type}</td>
       <td>${e.retired?'-':e.seniority}</td>
       <td>${e.pref||"-"}</td>
-      <td><input type="checkbox" ${e.vacation?"checked":""} ${e.retired?"disabled":""}
+      <td><input type="checkbox" ${e.vacation?"checked":""}
         onchange="employees[${i}].vacation=this.checked;save();generateSchedule()"></td>
-      <td><input type="checkbox" ${e.sick?"checked":""} ${e.retired?"disabled":""}
+      <td><input type="checkbox" ${e.sick?"checked":""}
         onchange="employees[${i}].sick=this.checked;save();generateSchedule()"></td>
       <td>${e.retired?"—":`<button class="retire" onclick="retireEmployee('${e.id}')">Retire</button>`}</td>
     </tr>`;
@@ -251,15 +232,7 @@ function renderEmployees(){
 function autoRecommendStaff(){
   const guests=+eventGuests.value;
   if(!guests) return;
-
-  const service=eventService.value;
-  let ratio={
-    "Plated Service":20,
-    "Buffet Service":30,
-    "Reception":40,
-    "Coffee Break":50
-  }[service] || 30;
-
+  const ratio={ "Plated Service":20,"Buffet Service":30,"Reception":40,"Coffee Break":50 }[eventService.value]||30;
   eventStaff.value=Math.ceil(guests/ratio);
 }
 
@@ -274,12 +247,10 @@ function addEvent(){
     service:eventService.value,
     staff:+eventStaff.value
   };
-
   if(editingEventId){
     Object.assign(events.find(e=>e.id===editingEventId),data);
     editingEventId=null;
   } else events.push(data);
-
   save(); renderEvents(); generateSchedule();
 }
 
@@ -336,41 +307,49 @@ function normalizeHours(start,end){
   return {h:8.5,cls:"shift-85"};
 }
 
+function editScheduleCell(empId,date){
+  const key=empId+"_"+date;
+  const val=prompt("Enter hours (4, 5.5, 6.5, 7.5, 8.5). Blank removes shift.",manualEdits[key]||"");
+  if(val===null) return;
+  if(val==="") delete manualEdits[key];
+  else manualEdits[key]=Number(val);
+  save(); generateSchedule();
+}
+
 function generateSchedule(){
   scheduleTable.innerHTML="";
   const start=getWeekStart();
   const days=[...Array(7)].map((_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d;});
-
   weekHeader.textContent=`${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
 
   scheduleTable.innerHTML="<tr><th>Employee</th>"+
     days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</th>`).join("")+
     "<th>Total</th></tr>";
 
-  // ✅ ADDED: Explicitly allow schedule generation even when there are zero events
-  // This guarantees blank schedules still render employees + week view
   employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0,row=`<tr><td>${emp.name}</td>`;
     days.forEach(d=>{
+      const key=emp.id+"_"+iso(d);
+      if(manualEdits[key]){
+        total+=manualEdits[key];
+        row+=`<td onclick="editScheduleCell('${emp.id}','${iso(d)}')">${manualEdits[key]}h</td>`;
+        return;
+      }
       const ev=events.find(e=>e.date===iso(d));
       if(!ev || emp.vacation || emp.sick){
-        row+="<td></td>";
+        row+=`<td onclick="editScheduleCell('${emp.id}','${iso(d)}')"></td>`;
         return;
       }
       const s=normalizeHours(ev.start,ev.end);
       total+=s.h;
-      row+=`<td class="${s.cls}">${s.h}h</td>`;
+      row+=`<td class="${s.cls}" onclick="editScheduleCell('${emp.id}','${iso(d)}')">${s.h}h</td>`;
     });
     row+=`<td><strong>${total}h</strong></td></tr>`;
     scheduleTable.innerHTML+=row;
   });
 }
 
-function regenerateSchedule(){
-  scheduleTable.innerHTML="";
-  setTimeout(generateSchedule,50);
-}
-
+function regenerateSchedule(){ generateSchedule(); }
 function changeWeek(n){ currentWeekOffset+=n; generateSchedule(); }
 function toggleDarkMode(){ document.body.classList.toggle("light-mode"); }
 function printSchedule(){ showTab("scheduleTab"); setTimeout(()=>window.print(),200); }
