@@ -1,17 +1,26 @@
 let employees = [];
-let events = [];
+let events =;
+
+// Grab elements once
+const empName = document.getElementById("empName");
+const empSeniority = document.getElementById("empSeniority");
+const empMaxHours = document.getElementById("empMaxHours");
+const employeeTable = document.getElementById("employeeTable");
+
+const eventName = document.getElementById("eventName");
+const eventDate = document.getElementById("eventDate");
+const eventStart = document.getElementById("eventStart");
+const eventEnd = document.getElementById("eventEnd");
+const eventStaff = document.getElementById("eventStaff");
+const eventTable = document.getElementById("eventTable");
 
 function addEmployee() {
-  const name = empName.value;
-  const seniority = Number(empSeniority.value);
-  const maxHours = Number(empMaxHours.value);
-
-  if (!name || !seniority || !maxHours) return;
+  if (!empName.value || !empSeniority.value || !empMaxHours.value) return;
 
   employees.push({
-    name,
-    seniority,
-    maxHours,
+    name: empName.value,
+    seniority: Number(empSeniority.value),
+    maxHours: Number(empMaxHours.value),
     hours: 0
   });
 
@@ -28,7 +37,7 @@ function renderEmployees() {
         <tr>
           <td data-label="Name">${e.name}</td>
           <td data-label="Seniority">${e.seniority}</td>
-          <td data-label="Max">${e.maxHours}</td>
+          <td data-label="Max Hours">${e.maxHours}</td>
           <td data-label="Assigned">${e.hours}</td>
         </tr>
       `;
@@ -36,17 +45,16 @@ function renderEmployees() {
 }
 
 function addEvent() {
-  const event = {
+  if (!eventName.value || !eventDate.value || !eventStart.value || !eventEnd.value || !eventStaff.value) return;
+
+  events.push({
     name: eventName.value,
     date: eventDate.value,
     start: eventStart.value,
     end: eventEnd.value,
     staff: Number(eventStaff.value)
-  };
+  });
 
-  if (!event.name || !event.date || !event.start || !event.end || !event.staff) return;
-
-  events.push(event);
   eventName.value = eventDate.value = eventStart.value = eventEnd.value = eventStaff.value = "";
   renderEvents();
 }
@@ -66,5 +74,5 @@ function renderEvents() {
 }
 
 function generateSchedule() {
-  alert("Scheduling engine comes next 🚧");
+  alert("Next step: seniority-first auto scheduling 🚀");
 }
