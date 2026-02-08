@@ -37,6 +37,7 @@ input, select, button {
 }
 button { background:#4e9af1; color:#fff; font-weight:bold; }
 button.delete { background:#c0392b; }
+button.retire { background:#8e44ad; }
 
 /* TABLE */
 table { border-collapse:collapse; width:100%; margin-top:10px; }
@@ -56,6 +57,7 @@ th { background:#4e9af1; color:#fff; }
 /* STATUS */
 .status-vacation { background:#7f8c8d; }
 .status-sick { background:#c0392b; }
+.status-retired { background:#555; opacity:0.6; }
 
 /* SHIFTS */
 .shift-4 { background:#2ecc71; }
@@ -83,6 +85,7 @@ th { background:#4e9af1; color:#fff; }
 <!-- EMPLOYEES -->
 <div id="employeesTab" class="tab">
 <h2>Employees</h2>
+
 <input id="empName" placeholder="Name" />
 <select id="empType"><option>FT</option><option>PT</option></select>
 <input id="empSeniority" type="number" placeholder="Seniority" />
@@ -97,7 +100,7 @@ th { background:#4e9af1; color:#fff; }
 <thead>
 <tr>
   <th>Name</th><th>Type</th><th>Seniority</th><th>Pref</th>
-  <th>Vacation</th><th>Sick</th>
+  <th>Vacation</th><th>Sick</th><th>Retire</th>
 </tr>
 </thead>
 <tbody id="employeesTable"></tbody>
@@ -147,6 +150,9 @@ th { background:#4e9af1; color:#fff; }
 </div>
 
 <script>
+/* 🔒 Feature gate (paid later) */
+const PRO_ENABLED = true;
+
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
 let editingEventId = null;
@@ -174,33 +180,61 @@ function showTab(id){
 /* EMPLOYEES */
 function addEmployee(){
   employees.push({
+    id: crypto.randomUUID(),
     name: empName.value,
     type: empType.value,
     seniority:+empSeniority.value,
     pref: empPref.value,
     vacation:false,
-    sick:false
+    sick:false,
+    retired:false
   });
+  rebalanceSeniority();
   save(); renderEmployees(); generateSchedule();
 }
-function renderEmployees(){
-  employeesTable.innerHTML="";
-  employees.sort((a,b)=>a.seniority-b.seniority).forEach((e,i)=>{
-    employeesTable.innerHTML+=`
-    <tr>
-      <td>${e.name}</td>
-      <td>${e.type}</td>
-      <td>${e.seniority}</td>
-      <td>${e.pref||"-"}</td>
-      <td><input type="checkbox" ${e.vacation?"checked":""}
-        onchange="employees[${i}].vacation=this.checked;save();generateSchedule()"></td>
-      <td><input type="checkbox" ${e.sick?"checked":""}
-        onchange="employees[${i}].sick=this.checked;save();generateSchedule()"></td>
-    </tr>`;
-  });
+
+function rebalanceSeniority(){
+  employees
+    .filter(e=>!e.retired)
+    .sort((a,b)=>a.seniority-b.seniority)
+    .forEach((e,i)=>e.seniority=i+1);
 }
 
-/* EVENTS */
+function retireEmployee(id){
+  if(!PRO_ENABLED){
+    alert("Retirement & auto-seniority is a Pro feature.");
+    return;
+  }
+  if(!confirm("Retire this employee?")) return;
+  const emp = employees.find(e=>e.id===id);
+  emp.retired = true;
+  rebalanceSeniority();
+  save(); renderEmployees(); generateSchedule();
+}
+
+function renderEmployees(){
+  employeesTable.innerHTML="";
+  employees
+    .sort((a,b)=>a.seniority-b.seniority)
+    .forEach((e,i)=>{
+      employeesTable.innerHTML+=`
+      <tr class="${e.retired?'status-retired':''}">
+        <td>${e.name}</td>
+        <td>${e.type}</td>
+        <td>${e.retired ? '-' : e.seniority}</td>
+        <td>${e.pref||"-"}</td>
+        <td><input type="checkbox" ${e.vacation?"checked":""} ${e.retired?"disabled":""}
+          onchange="employees[${i}].vacation=this.checked;save();generateSchedule()"></td>
+        <td><input type="checkbox" ${e.sick?"checked":""} ${e.retired?"disabled":""}
+          onchange="employees[${i}].sick=this.checked;save();generateSchedule()"></td>
+        <td>
+          ${e.retired ? "—" : `<button class="retire" onclick="retireEmployee('${e.id}')">Retire</button>`}
+        </td>
+      </tr>`;
+    });
+}
+
+/* EVENTS (unchanged logic) */
 function addEvent(){
   if(editingEventId){
     Object.assign(events.find(e=>e.id===editingEventId), readEventForm());
@@ -211,6 +245,7 @@ function addEvent(){
   clearEventForm();
   save(); renderEvents(); generateSchedule();
 }
+
 function readEventForm(){
   return {
     name:eventName.value,
@@ -222,10 +257,12 @@ function readEventForm(){
     staff:+eventStaff.value
   };
 }
+
 function clearEventForm(){
   eventName.value=eventDate.value=eventStart.value=eventEnd.value="";
   eventGuests.value=eventStaff.value="";
 }
+
 function renderEvents(){
   eventsTable.innerHTML="";
   events.forEach(ev=>{
@@ -242,6 +279,7 @@ function renderEvents(){
     </tr>`;
   });
 }
+
 function editEvent(id){
   const ev=events.find(e=>e.id===id);
   editingEventId=id;
@@ -253,13 +291,14 @@ function editEvent(id){
   eventService.value=ev.service;
   eventStaff.value=ev.staff;
 }
+
 function deleteEvent(id){
   if(!confirm("Delete event?")) return;
   events=events.filter(e=>e.id!==id);
   save(); renderEvents(); generateSchedule();
 }
 
-/* WEEK */
+/* WEEK + SCHEDULE */
 function getWeekStart(){
   const d=new Date();
   d.setDate(d.getDate() + currentWeekOffset*7);
@@ -273,10 +312,9 @@ const iso=d=>d.toISOString().split("T")[0];
 
 function changeWeek(delta){
   currentWeekOffset+=delta;
-  generateSchedule();
+  generateSchedule(true);
 }
 
-/* HOURS */
 function normalizeHours(start,end){
   const diff=(new Date(`1970-01-01T${end}`)-new Date(`1970-01-01T${start}`))/3600000;
   if(diff<=4) return {h:4,cls:"shift-4"};
@@ -285,11 +323,8 @@ function normalizeHours(start,end){
   return {h:8.5,cls:"shift-85"};
 }
 
-/* SCHEDULE CORE */
-function generateSchedule(force=false){
-  if(force) scheduleTable.innerHTML="";
+function generateSchedule(){
   scheduleTable.innerHTML="";
-
   const start=getWeekStart();
   const days=[...Array(7)].map((_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d;});
 
@@ -301,7 +336,7 @@ function generateSchedule(force=false){
     days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</th>`).join("") +
     "<th>Total</th></tr>";
 
-  employees.forEach(emp=>{
+  employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0;
     let row=`<tr><td>${emp.name}</td>`;
     days.forEach(d=>{
@@ -321,13 +356,11 @@ function generateSchedule(force=false){
   });
 }
 
-/* REGENERATE */
 function regenerateSchedule(){
   scheduleTable.innerHTML="";
-  setTimeout(()=>generateSchedule(true),50);
+  setTimeout(generateSchedule,50);
 }
 
-/* DARK MODE */
 function toggleDarkMode(){
   document.body.classList.toggle("light-mode");
 }
