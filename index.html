@@ -42,6 +42,7 @@ th, td {
   border: 1px solid #ccc;
   padding: 6px;
   text-align: center;
+  vertical-align: top;
 }
 
 th {
@@ -108,11 +109,7 @@ function addEmployee() {
   const name = empName.value.trim();
   if (!name) return alert("Enter name");
 
-  employees.push({
-    name,
-    type: empType.value
-  });
-
+  employees.push({ name, type: empType.value });
   empName.value = "";
   saveData();
   renderEmployees();
@@ -120,7 +117,7 @@ function addEmployee() {
 
 function renderEmployees() {
   employeeList.innerHTML = "";
-  employees.forEach((e, i) => {
+  employees.forEach(e => {
     const li = document.createElement("li");
     li.textContent = `${e.name} (${e.type})`;
     employeeList.appendChild(li);
@@ -148,7 +145,7 @@ function renderEvents() {
     const li = document.createElement("li");
     li.textContent = `${e.date} ${e.start}-${e.end} (${e.guests} guests)`;
     const btn = document.createElement("button");
-    btn.textContent = "❌";
+    btn.textContent = " ❌";
     btn.onclick = () => {
       events.splice(i, 1);
       saveData();
@@ -169,7 +166,6 @@ function recommendServers(guests) {
 function generateSchedule() {
   schedule = {};
 
-  // Full-time first
   const sortedEmployees = [...employees].sort((a, b) => {
     if (a.type !== b.type) return a.type === "full" ? -1 : 1;
     return 0;
@@ -179,23 +175,28 @@ function generateSchedule() {
     const start = new Date(event.date + "T" + event.start);
     const end = new Date(event.date + "T" + event.end);
     let hours = (end - start) / 3600000;
-
-    // ✅ MINIMUM 4 HOURS RULE
     hours = Math.max(hours, 4);
 
-    let needed = recommendServers(event.guests);
+    const needed = recommendServers(event.guests);
     let assigned = 0;
 
     sortedEmployees.forEach(emp => {
       if (assigned >= needed) return;
 
-      if (!schedule[emp.name]) schedule[emp.name] = [];
+      if (!schedule[emp.name]) schedule[emp.name] = {};
 
-      schedule[emp.name].push({
-        date: event.date,
-        time: `${event.start}–${event.end}`,
-        hours: hours
-      });
+      if (!schedule[emp.name][event.date]) {
+        schedule[emp.name][event.date] = {
+          start: event.start,
+          end: event.end,
+          hours: hours
+        };
+      } else {
+        const existing = schedule[emp.name][event.date];
+        existing.start = existing.start < event.start ? existing.start : event.start;
+        existing.end = existing.end > event.end ? existing.end : event.end;
+        existing.hours = Math.max(existing.hours + hours, 4);
+      }
 
       assigned++;
     });
@@ -205,23 +206,36 @@ function generateSchedule() {
 }
 
 function renderSchedule() {
-  let html = "<table><tr><th>Employee</th>";
-
   const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  let html = "<table><tr><th>Employee</th>";
   days.forEach(d => html += `<th>${d}</th>`);
   html += "</tr>";
 
   employees.forEach(emp => {
     html += `<tr><td class="employee-row">${emp.name}</td>`;
-    days.forEach(() => html += "<td></td>");
+    days.forEach((d, i) => {
+      const date = getDateForWeekday(i);
+      const entry = schedule[emp.name]?.[date];
+      html += "<td>";
+      if (entry) {
+        html += `${entry.start}–${entry.end}<br>${entry.hours.toFixed(1)}h`;
+      }
+      html += "</td>";
+    });
     html += "</tr>";
   });
 
   html += "</table>";
-  scheduleDiv.innerHTML = html;
+  schedule.innerHTML = html;
 }
 
-const scheduleDiv = document.getElementById("schedule");
+function getDateForWeekday(offset) {
+  const now = new Date();
+  const monday = new Date(now.setDate(now.getDate() - ((now.getDay() + 6) % 7)));
+  const d = new Date(monday);
+  d.setDate(monday.getDate() + offset);
+  return d.toISOString().split("T")[0];
+}
 
 renderEmployees();
 renderEvents();
