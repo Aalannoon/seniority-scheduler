@@ -6,57 +6,20 @@
 <title>Seniority Scheduler</title>
 
 <style>
-body {
-  font-family: Arial, sans-serif;
-  padding: 20px;
-  background: #f5f5f5;
-}
+body { font-family: Arial; background:#f5f5f5; padding:20px; }
+.section { background:#fff; padding:15px; border-radius:6px; margin-bottom:20px; }
+input,select,button { padding:6px; margin:4px 0; }
+table { border-collapse:collapse; width:100%; margin-top:15px; }
+th,td { border:1px solid #ccc; padding:6px; text-align:center; }
+th { background:#eee; }
+.employee-row { font-weight:bold; }
 
-.section {
-  background: #fff;
-  padding: 15px;
-  border-radius: 6px;
-  margin-bottom: 20px;
-}
+.shift-4 { background:#c8f7c5; }
+.shift-6 { background:#ffd59e; }
+.shift-8 { background:#fff3a0; }
+.shift-ot { background:#d5b3ff; }
 
-input, select, button {
-  padding: 6px;
-  margin: 4px 0;
-}
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-  margin-top: 15px;
-}
-
-th, td {
-  border: 1px solid #ccc;
-  padding: 6px;
-  text-align: center;
-  vertical-align: top;
-}
-
-th {
-  background: #eee;
-}
-
-.employee-row {
-  font-weight: bold;
-}
-
-/* SHIFT COLORS (BASED ON PAID HOURS) */
-.shift-4 { background: #c8f7c5; }
-.shift-6 { background: #ffd59e; }
-.shift-8 { background: #fff3a0; }
-.shift-ot { background: #d5b3ff; }
-
-/* VACATION */
-.vacation {
-  background: #ddd;
-  color: #666;
-  font-style: italic;
-}
+.vacation { background:#ddd; color:#666; font-style:italic; }
 </style>
 </head>
 
@@ -64,140 +27,144 @@ th {
 
 <h1>Seniority Scheduler</h1>
 
-<!-- EMPLOYEES -->
 <div class="section">
-  <h2>Add Employee</h2>
-  <input id="empName" placeholder="Name">
-  <select id="empType">
-    <option value="full">Full-Time</option>
-    <option value="part">Part-Time</option>
-  </select>
-  <button onclick="addEmployee()">Add Employee</button>
-  <ul id="employeeList"></ul>
-</div>
-
-<!-- VACATION -->
-<div class="section">
-  <h2>Employee Vacation</h2>
-  <select id="vacEmp"></select><br>
-  From <input type="date" id="vacStart">
-  To <input type="date" id="vacEnd">
-  <button onclick="addVacation()">Add Vacation</button>
-</div>
-
-<!-- EVENTS -->
-<div class="section">
-  <h2>Add Event</h2>
-  <input type="date" id="eventDate">
-  <input type="time" id="eventStart">
-  <input type="time" id="eventEnd">
-  <input type="number" id="eventGuests" placeholder="Guests">
-  <button onclick="addEvent()">Add Event</button>
-  <ul id="eventList"></ul>
+<h2>Add Employee</h2>
+<input id="empName" placeholder="Name">
+<select id="empType">
+  <option value="full">Full-Time</option>
+  <option value="part">Part-Time</option>
+</select>
+<select id="empPref">
+  <option value="morning">Morning</option>
+  <option value="midday">Midday</option>
+  <option value="night">Afternoon / Night</option>
+</select>
+<button onclick="addEmployee()">Add Employee</button>
+<ul id="employeeList"></ul>
 </div>
 
 <div class="section">
-  <button onclick="generateSchedule()">Generate Schedule</button>
+<h2>Employee Vacation</h2>
+<select id="vacEmp"></select><br>
+From <input type="date" id="vacStart">
+To <input type="date" id="vacEnd">
+<button onclick="addVacation()">Add Vacation</button>
 </div>
 
 <div class="section">
-  <h2 id="scheduleHeader"></h2>
-  <div id="schedule"></div>
+<h2>Add Event</h2>
+<input type="date" id="eventDate">
+<input type="time" id="eventStart">
+<input type="time" id="eventEnd">
+<input type="number" id="eventGuests" placeholder="Guests">
+<button onclick="addEvent()">Add Event</button>
+<ul id="eventList"></ul>
+</div>
+
+<div class="section">
+<button onclick="generateSchedule()">Generate Schedule</button>
+</div>
+
+<div class="section">
+<h2 id="scheduleHeader"></h2>
+<div id="schedule"></div>
 </div>
 
 <script>
 let employees = JSON.parse(localStorage.getItem("employees")) || [];
 let events = JSON.parse(localStorage.getItem("events")) || [];
 
-function save() {
-  localStorage.setItem("employees", JSON.stringify(employees));
-  localStorage.setItem("events", JSON.stringify(events));
+function save(){ localStorage.setItem("employees",JSON.stringify(employees)); localStorage.setItem("events",JSON.stringify(events)); }
+
+function addEmployee(){
+  if(!empName.value) return alert("Name required");
+  employees.push({
+    name: empName.value,
+    type: empType.value,
+    pref: empPref.value,
+    vacations:[]
+  });
+  empName.value="";
+  save(); renderEmployees();
 }
 
-function addEmployee() {
-  if (!empName.value) return alert("Enter name");
-  employees.push({ name: empName.value, type: empType.value, vacations: [] });
-  empName.value = "";
-  save();
-  renderEmployees();
-}
-
-function renderEmployees() {
-  employeeList.innerHTML = "";
-  vacEmp.innerHTML = "";
-  employees.forEach(e => {
-    employeeList.innerHTML += `<li>${e.name} (${e.type})</li>`;
-    vacEmp.innerHTML += `<option>${e.name}</option>`;
+function renderEmployees(){
+  employeeList.innerHTML=""; vacEmp.innerHTML="";
+  employees.forEach(e=>{
+    employeeList.innerHTML+=`<li>${e.name} (${e.type}, ${e.pref})</li>`;
+    vacEmp.innerHTML+=`<option>${e.name}</option>`;
   });
 }
 
-function addVacation() {
-  const emp = employees.find(e => e.name === vacEmp.value);
-  if (!emp || !vacStart.value || !vacEnd.value) return;
-  emp.vacations.push({ start: vacStart.value, end: vacEnd.value });
-  save();
-  alert("Vacation added");
+function addVacation(){
+  const e=employees.find(x=>x.name===vacEmp.value);
+  if(!e||!vacStart.value||!vacEnd.value) return;
+  e.vacations.push({start:vacStart.value,end:vacEnd.value});
+  save(); alert("Vacation added");
 }
 
-function addEvent() {
+function addEvent(){
   events.push({
-    date: eventDate.value,
-    start: eventStart.value,
-    end: eventEnd.value,
-    guests: Number(eventGuests.value || 0)
+    date:eventDate.value,
+    start:eventStart.value,
+    end:eventEnd.value,
+    guests:Number(eventGuests.value||0)
   });
-  save();
-  renderEvents();
+  save(); renderEvents();
 }
 
-function renderEvents() {
-  eventList.innerHTML = "";
-  events.forEach((e, i) => {
-    eventList.innerHTML += `<li>
-      ${e.date} ${e.start}-${e.end} (${e.guests} guests)
+function renderEvents(){
+  eventList.innerHTML="";
+  events.forEach((e,i)=>{
+    eventList.innerHTML+=`<li>
+      ${e.date} ${e.start}-${e.end} (${e.guests})
       <button onclick="events.splice(${i},1);save();renderEvents()">❌</button>
     </li>`;
   });
 }
 
-function isOnVacation(emp, date) {
-  return emp.vacations.some(v => date >= v.start && date <= v.end);
+function isOnVacation(emp,d){
+  return emp.vacations.some(v=>d>=v.start&&d<=v.end);
 }
 
-function recommendServers(g) {
-  if (g <= 50) return 2;
-  if (g <= 150) return 4;
-  if (g <= 300) return 6;
+function recommendServers(g){
+  if(g<=50) return 2;
+  if(g<=150) return 4;
+  if(g<=300) return 6;
   return 8;
 }
 
-function generateSchedule() {
-  let sched = {};
-  const sorted = [...employees].sort((a,b)=>{
+function prefScore(pref,start){
+  const h=parseInt(start.split(":")[0]);
+  if(pref==="morning") return h<12?0:1;
+  if(pref==="midday") return h>=11&&h<=15?0:1;
+  return h>=15?0:1;
+}
+
+function generateSchedule(){
+  let sched={};
+  const sorted=[...employees].sort((a,b)=>{
     if(a.type!==b.type) return a.type==="full"?-1:1;
     return 0;
   });
 
   events.forEach(ev=>{
-    const start = new Date(ev.date+"T"+ev.start);
-    const end = new Date(ev.date+"T"+ev.end);
-    let paid = Math.max(4, Math.min(8,(end-start)/3600000));
-    let schedH = paid>4?paid+0.5:paid;
-    let need = recommendServers(ev.guests);
-    let used = 0;
+    const start=new Date(ev.date+"T"+ev.start);
+    const end=new Date(ev.date+"T"+ev.end);
+    let paid=Math.max(4,Math.min(8,(end-start)/3600000));
+    let schedH=paid>4?paid+0.5:paid;
+    let need=recommendServers(ev.guests);
 
-    sorted.forEach(emp=>{
+    let candidates=sorted.filter(e=>!isOnVacation(e,ev.date));
+    candidates.sort((a,b)=>prefScore(a.pref,ev.start)-prefScore(b.pref,ev.start));
+
+    let used=0;
+    candidates.forEach(emp=>{
       if(used>=need) return;
-      if(isOnVacation(emp,ev.date)) return;
       if(!sched[emp.name]) sched[emp.name]={};
       if(sched[emp.name][ev.date]) return;
 
-      sched[emp.name][ev.date]={
-        start: ev.start,
-        end: ev.end,
-        paid,
-        schedH
-      };
+      sched[emp.name][ev.date]={start:ev.start,end:ev.end,paid,schedH};
       used++;
     });
   });
@@ -205,24 +172,23 @@ function generateSchedule() {
   renderSchedule(sched);
 }
 
-function getWeek() {
+function getWeek(){
   const t=new Date();
   const m=new Date(t);
   m.setDate(t.getDate()-((t.getDay()+6)%7));
   return [...Array(7)].map((_,i)=>{
-    const d=new Date(m);
-    d.setDate(m.getDate()+i);
+    const d=new Date(m); d.setDate(m.getDate()+i);
     return d.toISOString().split("T")[0];
   });
 }
 
-function shiftClass(p) {
+function shiftClass(p){
   if(p>=8) return "shift-8";
   if(p>=6) return "shift-6";
   return "shift-4";
 }
 
-function renderSchedule(s) {
+function renderSchedule(s){
   const week=getWeek();
   const head=new Date(week[0]);
   scheduleHeader.textContent=head.toLocaleString("default",{month:"long",year:"numeric"});
@@ -241,22 +207,16 @@ function renderSchedule(s) {
         html+=`<td class="vacation">Vacation</td>`;
       } else if(s?.[emp.name]?.[d]){
         const sh=s[emp.name][d];
-        html+=`<td class="${shiftClass(sh.paid)}">
-          ${sh.start}-${sh.end}<br>${sh.schedH}h
-        </td>`;
-      } else {
-        html+="<td></td>";
-      }
+        html+=`<td class="${shiftClass(sh.paid)}">${sh.start}-${sh.end}<br>${sh.schedH}h</td>`;
+      } else html+="<td></td>";
     });
     html+="</tr>";
   });
 
-  html+="</table>";
-  schedule.innerHTML=html;
+  schedule.innerHTML=html+"</table>";
 }
 
-renderEmployees();
-renderEvents();
+renderEmployees(); renderEvents();
 </script>
 
 </body>
