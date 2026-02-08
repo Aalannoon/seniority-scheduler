@@ -15,17 +15,12 @@ nav button {
 nav button.active { background:#555; }
 section { display:none; padding:15px; }
 section.active { display:block; }
-.card {
-  background:#fff; padding:15px; margin-bottom:12px;
-  border-radius:6px;
-}
-input, select, button {
-  width:100%; padding:8px; margin-top:6px;
-}
+.card { background:#fff; padding:15px; margin-bottom:12px; border-radius:6px; }
+input, select, button { width:100%; padding:8px; margin-top:6px; }
 .list { border-top:1px solid #ddd; margin-top:10px; }
 .item { padding:6px 0; border-bottom:1px solid #ddd; }
 .small { font-size:0.9em; color:#555; }
-.vacation { color:#c0392b; font-weight:bold; }
+.vac { color:#c0392b; font-weight:bold; }
 </style>
 </head>
 
@@ -56,7 +51,7 @@ input, select, button {
       <option>Midday</option>
       <option>Night</option>
     </select>
-    <button onclick="addEmployee()">Add Employee</button>
+    <button onclick="addEmployee()">Add</button>
   </div>
 
   <div class="card">
@@ -72,12 +67,9 @@ input, select, button {
     <input id="eventDate" type="date">
     <input id="eventStart" type="time">
     <input id="eventEnd" type="time">
-
-    <h4>Servers Needed</h4>
     <input id="needSetup" type="number" placeholder="Setup servers">
     <input id="needEvent" type="number" placeholder="Event servers">
     <input id="needCleanup" type="number" placeholder="Cleanup servers">
-
     <button onclick="addEvent()">Add Event</button>
   </div>
 
@@ -92,7 +84,7 @@ input, select, button {
     <h3>Add Vacation</h3>
     <select id="vacEmp"></select>
     <input id="vacDate" type="date">
-    <button onclick="addVacation()">Add Vacation</button>
+    <button onclick="addVacation()">Add</button>
   </div>
 
   <div class="card">
@@ -113,6 +105,7 @@ input, select, button {
 let employees = JSON.parse(localStorage.getItem("employees")) || [];
 let events = JSON.parse(localStorage.getItem("events")) || [];
 let vacations = JSON.parse(localStorage.getItem("vacations")) || [];
+let hours = {};
 
 function save() {
   localStorage.setItem("employees", JSON.stringify(employees));
@@ -146,7 +139,7 @@ function addEmployee() {
 
   save();
   renderEmployees();
-  renderVacationEmployees();
+  renderVacEmp();
 }
 
 function renderEmployees() {
@@ -166,9 +159,9 @@ function addEvent() {
     date: eventDate.value,
     start: eventStart.value,
     end: eventEnd.value,
-    setup: parseInt(needSetup.value || 0),
-    main: parseInt(needEvent.value || 0),
-    cleanup: parseInt(needCleanup.value || 0)
+    setup: +needSetup.value || 0,
+    main: +needEvent.value || 0,
+    cleanup: +needCleanup.value || 0
   });
   save();
   renderEvents();
@@ -179,21 +172,18 @@ function renderEvents() {
     `<div class="item">
       <strong>${e.name}</strong><br>
       ${e.date} ${e.start}–${e.end}<br>
-      Setup: ${e.setup}, Event: ${e.main}, Cleanup: ${e.cleanup}
+      Setup ${e.setup}, Event ${e.main}, Cleanup ${e.cleanup}
     </div>`
   ).join("");
 }
 
 /* VACATIONS */
 
-function renderVacationEmployees() {
-  vacEmp.innerHTML = employees.map(e =>
-    `<option value="${e.name}">${e.name}</option>`
-  ).join("");
+function renderVacEmp() {
+  vacEmp.innerHTML = employees.map(e => `<option>${e.name}</option>`).join("");
 }
 
 function addVacation() {
-  if (!vacEmp.value || !vacDate.value) return;
   vacations.push({ name: vacEmp.value, date: vacDate.value });
   save();
   renderVacations();
@@ -201,25 +191,32 @@ function addVacation() {
 
 function renderVacations() {
   vacationList.innerHTML = vacations.map(v =>
-    `<div class="item vacation">
-      ${v.name} — ${v.date}
-    </div>`
+    `<div class="item vac">${v.name} — ${v.date}</div>`
   ).join("");
 }
 
 /* SCHEDULER */
 
+function overlaps(emp, start, end) {
+  return hours[emp]?.some(h => !(end <= h.start || start >= h.end));
+}
+
+function prefScore(pref, block) {
+  if (pref === "Morning" && block === "Setup") return 2;
+  if (pref === "Midday" && block === "Event") return 2;
+  if (pref === "Night" && block === "Cleanup") return 2;
+  return 1;
+}
+
 function generateSchedule() {
-  let output = "";
+  hours = {};
+  let out = "";
 
   events.forEach(ev => {
-    output += `<h4>${ev.name} (${ev.date})</h4>`;
+    out += `<h4>${ev.name} (${ev.date})</h4>`;
+    let unavailable = vacations.filter(v => v.date === ev.date).map(v => v.name);
 
-    let unavailable = vacations
-      .filter(v => v.date === ev.date)
-      .map(v => v.name);
-
-    let availableEmployees = employees.filter(e => !unavailable.includes(e.name));
+    let available = employees.filter(e => !unavailable.includes(e.name));
 
     let blocks = [
       { label:"Setup", need:ev.setup },
@@ -228,36 +225,39 @@ function generateSchedule() {
     ];
 
     blocks.forEach(b => {
-      if (b.need === 0) return;
-
-      output += `<strong>${b.label}</strong><ul>`;
+      if (!b.need) return;
+      out += `<strong>${b.label}</strong><ul>`;
       let assigned = 0;
 
-      for (let e of availableEmployees) {
+      let sorted = [...available].sort((a,b2) =>
+        prefScore(b2.pref,b.label) - prefScore(a.pref,b.label)
+      );
+
+      for (let e of sorted) {
         if (assigned >= b.need) break;
-        output += `<li>${e.name}</li>`;
-        assigned++;
+        hours[e.name] = hours[e.name] || [];
+        if (!overlaps(e.name, ev.start, ev.end)) {
+          hours[e.name].push({ start:ev.start, end:ev.end });
+          out += `<li>${e.name}</li>`;
+          assigned++;
+        }
       }
 
-      if (assigned < b.need) {
-        output += `<li><em>Unfilled slots</em></li>`;
-      }
-
-      output += `</ul>`;
+      if (assigned < b.need) out += `<li><em>Unfilled</em></li>`;
+      out += `</ul>`;
     });
 
-    if (unavailable.length) {
-      output += `<div class="vacation">On vacation: ${unavailable.join(", ")}</div>`;
-    }
+    if (unavailable.length)
+      out += `<div class="vac">On vacation: ${unavailable.join(", ")}</div>`;
   });
 
-  scheduleOutput.innerHTML = output;
+  scheduleOutput.innerHTML = out;
 }
 
 renderEmployees();
 renderEvents();
 renderVacations();
-renderVacationEmployees();
+renderVacEmp();
 </script>
 
 </body>
