@@ -140,7 +140,8 @@ th { background:#4e9af1; color:#fff; }
 
 <button onclick="changeWeek(-1)">⬅ Previous Week</button>
 <button onclick="changeWeek(1)">Next Week ➡</button>
-<button onclick="generateSchedule()">Regenerate</button>
+<button onclick="generateSchedule(true)">Generate</button>
+<button onclick="regenerateSchedule()">Regenerate</button>
 
 <table id="scheduleTable"></table>
 </div>
@@ -164,7 +165,10 @@ function showTab(id){
   document.getElementById(id).classList.add("active");
   if(id==="employeesTab") tabEmpBtn.classList.add("active");
   if(id==="eventsTab") tabEvBtn.classList.add("active");
-  if(id==="scheduleTab") tabSchBtn.classList.add("active");
+  if(id==="scheduleTab") {
+    tabSchBtn.classList.add("active");
+    generateSchedule();
+  }
 }
 
 /* EMPLOYEES */
@@ -177,7 +181,7 @@ function addEmployee(){
     vacation:false,
     sick:false
   });
-  save(); renderEmployees();
+  save(); renderEmployees(); generateSchedule();
 }
 function renderEmployees(){
   employeesTable.innerHTML="";
@@ -207,7 +211,6 @@ function addEvent(){
   clearEventForm();
   save(); renderEvents(); generateSchedule();
 }
-
 function readEventForm(){
   return {
     name:eventName.value,
@@ -219,12 +222,10 @@ function readEventForm(){
     staff:+eventStaff.value
   };
 }
-
 function clearEventForm(){
   eventName.value=eventDate.value=eventStart.value=eventEnd.value="";
   eventGuests.value=eventStaff.value="";
 }
-
 function renderEvents(){
   eventsTable.innerHTML="";
   events.forEach(ev=>{
@@ -241,7 +242,6 @@ function renderEvents(){
     </tr>`;
   });
 }
-
 function editEvent(id){
   const ev=events.find(e=>e.id===id);
   editingEventId=id;
@@ -253,14 +253,13 @@ function editEvent(id){
   eventService.value=ev.service;
   eventStaff.value=ev.staff;
 }
-
 function deleteEvent(id){
   if(!confirm("Delete event?")) return;
   events=events.filter(e=>e.id!==id);
   save(); renderEvents(); generateSchedule();
 }
 
-/* WEEK LOGIC */
+/* WEEK */
 function getWeekStart(){
   const d=new Date();
   d.setDate(d.getDate() + currentWeekOffset*7);
@@ -286,9 +285,11 @@ function normalizeHours(start,end){
   return {h:8.5,cls:"shift-85"};
 }
 
-/* SCHEDULE */
-function generateSchedule(){
+/* SCHEDULE CORE */
+function generateSchedule(force=false){
+  if(force) scheduleTable.innerHTML="";
   scheduleTable.innerHTML="";
+
   const start=getWeekStart();
   const days=[...Array(7)].map((_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d;});
 
@@ -318,6 +319,12 @@ function generateSchedule(){
     row+=`<td><strong>${total}h</strong></td></tr>`;
     scheduleTable.innerHTML+=row;
   });
+}
+
+/* REGENERATE */
+function regenerateSchedule(){
+  scheduleTable.innerHTML="";
+  setTimeout(()=>generateSchedule(true),50);
 }
 
 /* DARK MODE */
