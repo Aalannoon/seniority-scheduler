@@ -18,6 +18,12 @@
     <input id="empSeniority" type="number" placeholder="Seniority" />
     <input id="empMaxHours" type="number" placeholder="Max Hours" />
 
+    <select id="empPreference">
+      <option value="morning">Morning</option>
+      <option value="midday">Midday</option>
+      <option value="night">Night</option>
+    </select>
+
     <button onclick="addEmployee()">Add Employee</button>
 
     <table>
@@ -26,6 +32,7 @@
           <th>Name</th>
           <th>Seniority</th>
           <th>Max Hours</th>
+          <th>Preference</th>
           <th>Assigned</th>
         </tr>
       </thead>
@@ -58,11 +65,10 @@
     </table>
   </section>
 
-  <!-- SCHEDULING -->
+  <!-- SCHEDULE -->
   <section>
     <h2>Schedule</h2>
     <button onclick="generateSchedule()">Generate Schedule</button>
-    <div id="scheduleOutput"></div>
   </section>
 
   <script src="script.js"></script>
