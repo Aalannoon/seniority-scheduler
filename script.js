@@ -1,126 +1,98 @@
-document.addEventListener("DOMContentLoaded", () => {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event Scheduler</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; }
+    section { margin-bottom: 32px; }
+    input, select, button { margin: 4px 0; padding: 6px; width: 100%; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    h1, h2 { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
 
-  let employees = [];
-  let events = [];
+<h1>Smart Event Scheduler</h1>
 
-  const shiftPriority = {
-    morning: ["morning", "midday", "night"],
-    midday: ["midday", "night", "morning"],
-    night: ["night", "midday", "morning"]
-  };
+<!-- EMPLOYEES -->
+<section>
+  <h2>Employees</h2>
 
-  const empName = document.getElementById("empName");
-  const empSeniority = document.getElementById("empSeniority");
-  const empMaxHours = document.getElementById("empMaxHours");
-  const empPreference = document.getElementById("empPreference");
-  const employeeTable = document.getElementById("employeeTable");
+  <input id="empName" placeholder="Name" />
+  <input id="empSeniority" type="number" placeholder="Seniority (higher = more senior)" />
+  <input id="empMaxHours" type="number" placeholder="Max Hours" />
 
-  const eventName = document.getElementById("eventName");
-  const eventDate = document.getElementById("eventDate");
-  const eventStart = document.getElementById("eventStart");
-  const eventEnd = document.getElementById("eventEnd");
-  const eventStaff = document.getElementById("eventStaff");
-  const setupHours = document.getElementById("setupHours");
-  const cleanupHours = document.getElementById("cleanupHours");
-  const nextDaySetup = document.getElementById("nextDaySetup");
-  const eventTable = document.getElementById("eventTable");
+  <select id="empPreference">
+    <option value="morning">Morning</option>
+    <option value="midday">Midday</option>
+    <option value="night">Night</option>
+  </select>
 
-  window.addEmployee = function () {
-    employees.push({
-      name: empName.value,
-      seniority: Number(empSeniority.value),
-      maxHours: Number(empMaxHours.value),
-      hours: 0,
-      preference: empPreference.value
-    });
-    empName.value = empSeniority.value = empMaxHours.value = "";
-    renderEmployees();
-  };
+  <button onclick="addEmployee()">Add Employee</button>
 
-  function renderEmployees() {
-    employeeTable.innerHTML = "";
-    employees.sort((a, b) => b.seniority - a.seniority)
-      .forEach(e => {
-        employeeTable.innerHTML += `
-          <tr>
-            <td>${e.name}</td>
-            <td>${e.seniority}</td>
-            <td>${e.maxHours}</td>
-            <td>${e.preference}</td>
-            <td>${e.hours}</td>
-          </tr>`;
-      });
-  }
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Seniority</th>
+        <th>Max Hours</th>
+        <th>Preference</th>
+        <th>Assigned Hours</th>
+      </tr>
+    </thead>
+    <tbody id="employeeTable"></tbody>
+  </table>
+</section>
 
-  window.addEvent = function () {
-    events.push({
-      name: eventName.value,
-      date: eventDate.value,
-      start: eventStart.value,
-      end: eventEnd.value,
-      staff: Number(eventStaff.value),
-      setup: Number(setupHours.value || 0),
-      cleanup: Number(cleanupHours.value || 0),
-      nextDay: Number(nextDaySetup.value || 0)
-    });
+<!-- EVENTS -->
+<section>
+  <h2>Events</h2>
 
-    eventName.value = eventDate.value = eventStart.value = eventEnd.value = "";
-    eventStaff.value = setupHours.value = cleanupHours.value = nextDaySetup.value = "";
-    renderEvents();
-  };
+  <input id="eventName" placeholder="Event Name" />
+  <input id="eventDate" type="date" />
+  <input id="eventGuests" type="number" placeholder="Guest Count" />
 
-  function renderEvents() {
-    eventTable.innerHTML = "";
-    events.forEach(e => {
-      eventTable.innerHTML += `
-        <tr>
-          <td>${e.name}</td>
-          <td>${e.date}</td>
-          <td>
-            Setup: ${e.setup}h |
-            Event: ${e.start}-${e.end} |
-            Cleanup: ${e.cleanup}h |
-            Next-day: ${e.nextDay}h
-          </td>
-        </tr>`;
-    });
-  }
+  <select id="eventType">
+    <option value="cocktail">Cocktail</option>
+    <option value="buffet">Buffet</option>
+    <option value="plated">Plated</option>
+    <option value="vip">VIP / High End</option>
+  </select>
 
-  window.generateSchedule = function () {
+  <input id="eventStart" type="time" />
+  <input id="eventEnd" type="time" />
 
-    employees.forEach(e => e.hours = 0);
+  <input id="setupStaff" type="number" placeholder="Setup Servers" />
+  <input id="eventStaff" type="number" placeholder="Event Servers" />
+  <input id="cleanupStaff" type="number" placeholder="Cleanup Servers" />
 
-    const shifts = { morning: 0, midday: 0, night: 0 };
+  <button onclick="recommendStaff()">Recommend Staffing</button>
+  <button onclick="addEvent()">Add Event</button>
 
-    events.forEach(ev => {
-      const start = Number(ev.start.split(":")[0]);
-      const end = Number(ev.end.split(":")[0]);
-      const mainHours = (end - start) * ev.staff;
+  <table>
+    <thead>
+      <tr>
+        <th>Event</th>
+        <th>Date</th>
+        <th>Guests</th>
+        <th>Setup</th>
+        <th>Event</th>
+        <th>Cleanup</th>
+      </tr>
+    </thead>
+    <tbody id="eventTable"></tbody>
+  </table>
+</section>
 
-      if (start < 12) shifts.morning += mainHours;
-      else if (start < 18) shifts.midday += mainHours;
-      else shifts.night += mainHours;
+<!-- SCHEDULE -->
+<section>
+  <h2>Schedule</h2>
+  <button onclick="generateSchedule()">Generate Schedule</button>
+</section>
 
-      if (ev.setup > 0) shifts.midday += ev.setup * ev.staff;
-      if (ev.cleanup > 0) shifts.night += ev.cleanup * ev.staff;
-      if (ev.nextDay > 0) shifts.morning += ev.nextDay * ev.staff;
-    });
-
-    employees.sort((a, b) => b.seniority - a.seniority);
-
-    employees.forEach(emp => {
-      let remaining = emp.maxHours;
-      for (const shift of shiftPriority[emp.preference]) {
-        if (remaining <= 0 || shifts[shift] <= 0) continue;
-        const assign = Math.min(remaining, shifts[shift]);
-        shifts[shift] -= assign;
-        emp.hours += assign;
-        remaining -= assign;
-      }
-    });
-
-    renderEmployees();
-    alert("Schedule generated with setup, cleanup, and next-day shifts");
-  };
-
-});
+<script src="script.js"></script>
+</body>
+</html>
