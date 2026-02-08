@@ -7,22 +7,24 @@
 
 <style>
 body { font-family: Arial, sans-serif; margin:20px; }
-h2 { margin-top:30px; }
+h1,h2 { margin-top:30px; }
 input, select, button { padding:6px; margin:4px; }
 table { width:100%; border-collapse:collapse; margin-top:10px; }
-th, td { border:1px solid #ccc; padding:6px; text-align:center; }
+th, td { border:1px solid #ccc; padding:6px; vertical-align:top; text-align:center; }
 
+.parttime { background:#f3f3f3; }
 .vacation { background:#ffecec; }
-.parttime { background:#f5f5f5; }
 .warning { background:#ffe0b2; }
 
-.hour-low { background:#8ecdf7; }
-.hour-4 { background:#7cfc9a; }
-.hour-5 { background:#b6f5c2; }
-.hour-6 { background:#ffa94d; }
-.hour-7 { background:#ffd166; }
-.hour-8 { background:#fff176; }
-.hour-ot { background:#c084fc; color:#fff; }
+.cell { min-height:60px; }
+.shift { margin:4px 0; padding:4px; border-radius:4px; font-size:12px; }
+
+.h4 { background:#7cfc9a; }
+.h5 { background:#b6f5c2; }
+.h6 { background:#ffa94d; }
+.h7 { background:#ffd166; }
+.h8 { background:#fff176; }
+.ot { background:#c084fc; color:#fff; }
 
 .modal {
   display:none; position:fixed; inset:0;
@@ -56,8 +58,7 @@ th, td { border:1px solid #ccc; padding:6px; text-align:center; }
 <table>
 <thead>
 <tr>
-<th>Seniority</th><th>Name</th><th>Type</th>
-<th>Pref</th><th>Status</th><th>Actions</th>
+<th>Seniority</th><th>Name</th><th>Type</th><th>Preference</th><th>Status</th>
 </tr>
 </thead>
 <tbody id="employeeTable"></tbody>
@@ -70,7 +71,6 @@ th, td { border:1px solid #ccc; padding:6px; text-align:center; }
 <input type="time" id="eventStart">
 <input type="time" id="eventEnd">
 <input type="number" id="eventGuests" placeholder="Guests">
-
 <select id="eventType">
   <option value="seated">Seated Dinner</option>
   <option value="buffet">Buffet</option>
@@ -78,64 +78,34 @@ th, td { border:1px solid #ccc; padding:6px; text-align:center; }
   <option value="wedding">Wedding / Formal</option>
   <option value="conference">Conference</option>
 </select>
-
-<input type="number" id="eventServers" placeholder="Servers (manual)">
+<input type="number" id="eventServers" placeholder="Servers (override)">
 <button onclick="addEvent()">Add Event</button>
 
 <table>
 <thead>
 <tr>
-<th>Date</th><th>Event</th><th>Time</th>
-<th>Guests</th><th>Recommended</th>
-<th>Assigned</th><th>Actions</th>
+<th>Date</th><th>Name</th><th>Time</th><th>Guests</th>
+<th>Recommended</th><th>Assigned</th><th>Actions</th>
 </tr>
 </thead>
 <tbody id="eventTable"></tbody>
 </table>
 
 <!-- SCHEDULE -->
-<h2>Weekly Schedule</h2>
-<button onclick="generateSchedule()">Generate</button>
+<h2 id="weekHeader">Weekly Schedule</h2>
+<button onclick="generateSchedule()">Generate Schedule</button>
 <button onclick="exportCSV()">Export CSV</button>
 
-<table>
+<table id="scheduleGrid">
 <thead>
-<tr>
-<th>Date</th><th>Day</th><th>Event</th>
-<th>Time</th><th>Employee</th><th>Daily Hours</th>
-</tr>
+<tr id="dayHeader"></tr>
 </thead>
-<tbody id="scheduleTable"></tbody>
+<tbody id="scheduleBody"></tbody>
 </table>
-
-<!-- EVENT EDIT MODAL -->
-<div class="modal" id="eventModal">
-<div class="modal-content">
-<h3>Edit Event</h3>
-<input id="editEventName">
-<input type="date" id="editEventDate">
-<input type="time" id="editEventStart">
-<input type="time" id="editEventEnd">
-<input type="number" id="editEventGuests">
-<select id="editEventType">
-  <option value="seated">Seated Dinner</option>
-  <option value="buffet">Buffet</option>
-  <option value="cocktail">Cocktail</option>
-  <option value="wedding">Wedding / Formal</option>
-  <option value="conference">Conference</option>
-</select>
-<input type="number" id="editEventServers">
-<br><br>
-<button onclick="saveEvent()">Save</button>
-<button onclick="deleteEvent()">Delete</button>
-<button onclick="closeEventModal()">Cancel</button>
-</div>
-</div>
 
 <script>
 let employees = JSON.parse(localStorage.getItem("employees")||"[]");
 let events = JSON.parse(localStorage.getItem("events")||"[]");
-let editEventIndex = null;
 
 const ratios = { seated:20, buffet:30, cocktail:40, wedding:15, conference:25 };
 
@@ -158,7 +128,7 @@ function addEmployee(){
 
 function renderEmployees(){
   employeeTable.innerHTML="";
-  employees.forEach((e,i)=>{
+  employees.forEach(e=>{
     const tr=document.createElement("tr");
     if(e.vacation) tr.classList.add("vacation");
     if(e.type==="part") tr.classList.add("parttime");
@@ -168,7 +138,6 @@ function renderEmployees(){
       <td>${e.type}</td>
       <td>${e.pref}</td>
       <td>${e.vacation?"Vacation":"Active"}</td>
-      <td></td>
     `;
     employeeTable.appendChild(tr);
   });
@@ -194,9 +163,9 @@ function addEvent(){
 function renderEvents(){
   eventTable.innerHTML="";
   events.forEach((e,i)=>{
-    const rec = recommended(e.guests,e.type);
+    const rec=recommended(e.guests,e.type);
     const tr=document.createElement("tr");
-    if(e.servers < rec) tr.classList.add("warning");
+    if(e.servers<rec) tr.classList.add("warning");
     tr.innerHTML=`
       <td>${e.date}</td>
       <td>${e.name}</td>
@@ -204,87 +173,72 @@ function renderEvents(){
       <td>${e.guests}</td>
       <td>${rec}</td>
       <td>${e.servers}</td>
-      <td>
-        <button onclick="openEvent(${i})">Edit</button>
-      </td>
+      <td><button onclick="events.splice(${i},1);saveAll();renderEvents()">Delete</button></td>
     `;
     eventTable.appendChild(tr);
   });
-}
-
-function openEvent(i){
-  editEventIndex=i;
-  const e=events[i];
-  editEventName.value=e.name;
-  editEventDate.value=e.date;
-  editEventStart.value=e.start;
-  editEventEnd.value=e.end;
-  editEventGuests.value=e.guests;
-  editEventType.value=e.type;
-  editEventServers.value=e.servers;
-  eventModal.style.display="flex";
-}
-
-function closeEventModal(){ eventModal.style.display="none"; }
-
-function saveEvent(){
-  Object.assign(events[editEventIndex],{
-    name:editEventName.value,
-    date:editEventDate.value,
-    start:editEventStart.value,
-    end:editEventEnd.value,
-    guests:+editEventGuests.value,
-    type:editEventType.value,
-    servers:+editEventServers.value
-  });
-  saveAll(); renderEvents(); closeEventModal();
-}
-
-function deleteEvent(){
-  if(!confirm("Delete this event?")) return;
-  events.splice(editEventIndex,1);
-  saveAll(); renderEvents(); closeEventModal();
 }
 
 function hoursBetween(a,b){
   return (new Date("1970-01-01T"+b)-new Date("1970-01-01T"+a))/36e5;
 }
 
-function weekday(d){
-  return ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date(d).getDay()];
+function hourClass(h){
+  if(h>8) return "ot";
+  return "h"+Math.round(h);
 }
 
-function hourClass(h){
-  if(h>8) return "hour-ot";
-  if(h<4) return "hour-low";
-  return "hour-"+Math.round(h);
+function getMonday(d){
+  const date=new Date(d);
+  const day=date.getDay();
+  const diff=date.getDate()-(day===0?6:day-1);
+  return new Date(date.setDate(diff));
 }
 
 function generateSchedule(){
-  scheduleTable.innerHTML="";
+  scheduleBody.innerHTML="";
+  dayHeader.innerHTML="<th>Event</th>";
+
+  if(events.length===0) return;
+
+  const monday=getMonday(events[0].date);
+  const days=[];
+
+  for(let i=0;i<7;i++){
+    const d=new Date(monday);
+    d.setDate(monday.getDate()+i);
+    days.push(d);
+    dayHeader.innerHTML+=`<th>${d.toLocaleDateString("en",{weekday:"short"})} ${d.getDate()}</th>`;
+  }
+
+  weekHeader.innerText = monday.toLocaleDateString("en",{month:"long",year:"numeric"});
+
   events.forEach(ev=>{
-    const hours = hoursBetween(ev.start,ev.end);
-    let pool = employees.filter(e=>!e.vacation).sort((a,b)=>a.seniority-b.seniority);
-    for(let i=0;i<ev.servers && i<pool.length;i++){
-      const tr=document.createElement("tr");
-      tr.classList.add(hourClass(hours));
-      tr.innerHTML=`
-        <td>${ev.date}</td>
-        <td>${weekday(ev.date)}</td>
-        <td>${ev.name}</td>
-        <td>${ev.start}-${ev.end}</td>
-        <td>${pool[i].name}</td>
-        <td>${hours}</td>
-      `;
-      scheduleTable.appendChild(tr);
-    }
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${ev.name}<br>${ev.start}-${ev.end}</td>`;
+    days.forEach(d=>{
+      const cell=document.createElement("td");
+      cell.className="cell";
+      if(ev.date===d.toISOString().split("T")[0]){
+        const hours=hoursBetween(ev.start,ev.end);
+        const pool=employees.filter(e=>!e.vacation).sort((a,b)=>a.seniority-b.seniority);
+        for(let i=0;i<ev.servers && i<pool.length;i++){
+          const div=document.createElement("div");
+          div.className=`shift ${hourClass(hours)}`;
+          div.innerText=`${pool[i].name} (${hours}h)`;
+          cell.appendChild(div);
+        }
+      }
+      tr.appendChild(cell);
+    });
+    scheduleBody.appendChild(tr);
   });
 }
 
 function exportCSV(){
-  let rows=[["Date","Day","Event","Time","Employee","Hours"]];
-  document.querySelectorAll("#scheduleTable tr").forEach(tr=>{
-    rows.push([...tr.children].map(td=>td.innerText));
+  let rows=[["Event","Mon","Tue","Wed","Thu","Fri","Sat","Sun"]];
+  document.querySelectorAll("#scheduleBody tr").forEach(tr=>{
+    rows.push([...tr.children].map(td=>td.innerText.replace(/\n/g," | ")));
   });
   let csv=rows.map(r=>r.join(",")).join("\n");
   let a=document.createElement("a");
