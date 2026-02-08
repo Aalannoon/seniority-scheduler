@@ -10,214 +10,116 @@ h2 { margin-top: 30px; }
 input, select, button { margin: 4px 0; padding: 6px; }
 table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+
 .vacation { background:#ffecec; }
 .parttime { background:#f5f5f5; }
-.modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; }
-.modal-content { background:#fff; padding:20px; width:300px; }
-.schedule { background:#eef; }
+
+.hour-4 { background:#7CFC9A; }      /* green */
+.hour-5 { background:#B6F5C2; }
+.hour-6 { background:#FFA94D; }      /* orange */
+.hour-7 { background:#FFD166; }
+.hour-8 { background:#FFF176; }      /* yellow */
+.hour-low { background:#8ECDF7; }    /* blue */
+.hour-ot { background:#C084FC; color:#fff; } /* purple */
+
+.day-header {
+  background:#333; color:#fff; font-weight:bold;
+}
 </style>
 </head>
 <body>
 
-<h1>Seniority Scheduler</h1>
+<h1>Weekly Seniority Schedule</h1>
 
-<h2>Add Employee</h2>
-<input id="empName" placeholder="Name">
-<select id="empType">
-  <option value="full">Full Time</option>
-  <option value="part">Part Time</option>
-</select>
-<select id="empPref">
-  <option>Morning</option>
-  <option>Midday</option>
-  <option>Night</option>
-</select>
-<button onclick="addEmployee()">Add</button>
+<h2>Generate Schedule</h2>
+<button onclick="generateSchedule()">Generate</button>
 
-<h2>Employees</h2>
 <table>
 <thead>
 <tr>
-<th>Seniority</th><th>Name</th><th>Type</th><th>Pref</th><th>Status</th><th>Actions</th>
+<th>Date</th>
+<th>Day</th>
+<th>Event</th>
+<th>Time</th>
+<th>Employee</th>
+<th>Hours</th>
 </tr>
-</thead>
-<tbody id="employeeTable"></tbody>
-</table>
-
-<h2>Add Event</h2>
-<input id="eventName" placeholder="Event name">
-<input type="date" id="eventDate">
-<input type="time" id="eventStart">
-<input type="time" id="eventEnd">
-<input type="number" id="eventServers" placeholder="Servers needed">
-<button onclick="addEvent()">Add Event</button>
-
-<h2>Events</h2>
-<table>
-<thead>
-<tr><th>Date</th><th>Name</th><th>Time</th><th>Servers</th></tr>
-</thead>
-<tbody id="eventTable"></tbody>
-</table>
-
-<h2>Auto Schedule</h2>
-<button onclick="generateSchedule()">Generate Schedule</button>
-
-<table>
-<thead>
-<tr><th>Event</th><th>Employee</th><th>Hours</th></tr>
 </thead>
 <tbody id="scheduleTable"></tbody>
 </table>
 
-<!-- EDIT MODAL -->
-<div class="modal" id="editModal">
-<div class="modal-content">
-<h3>Edit Employee</h3>
-<input id="editName">
-<select id="editType">
-<option value="full">Full Time</option>
-<option value="part">Part Time</option>
-</select>
-<select id="editPref">
-<option>Morning</option><option>Midday</option><option>Night</option>
-</select>
-<label><input type="checkbox" id="editVacation"> On Vacation</label><br><br>
-<button onclick="saveEdit()">Save</button>
-<button onclick="retireEmployee()">Retire</button>
-<button onclick="closeModal()">Cancel</button>
-</div>
-</div>
-
 <script>
 let employees = JSON.parse(localStorage.getItem("employees")||"[]");
 let events = JSON.parse(localStorage.getItem("events")||"[]");
-let editingIndex=null;
-
-function saveAll(){
-  localStorage.setItem("employees",JSON.stringify(employees));
-  localStorage.setItem("events",JSON.stringify(events));
-}
-
-function reorderSeniority(){
-  const full=employees.filter(e=>e.type==="full");
-  const part=employees.filter(e=>e.type==="part");
-  employees=[...full,...part];
-  employees.forEach((e,i)=>e.seniority=i+1);
-}
-
-function addEmployee(){
-  if(!empName.value.trim())return;
-  employees.push({name:empName.value,type:empType.value,pref:empPref.value,vacation:false});
-  reorderSeniority(); saveAll(); renderEmployees(); empName.value="";
-}
-
-function renderEmployees(){
-  employeeTable.innerHTML="";
-  employees.forEach((e,i)=>{
-    const tr=document.createElement("tr");
-    if(e.vacation)tr.classList.add("vacation");
-    if(e.type==="part")tr.classList.add("parttime");
-    tr.innerHTML=`
-    <td>${e.seniority}</td><td>${e.name}</td><td>${e.type}</td>
-    <td>${e.pref}</td><td>${e.vacation?"Vacation":"Active"}</td>
-    <td><button onclick="openEdit(${i})">Edit</button></td>`;
-    employeeTable.appendChild(tr);
-  });
-}
-
-function openEdit(i){
-  editingIndex=i;
-  const e=employees[i];
-  editName.value=e.name;
-  editType.value=e.type;
-  editPref.value=e.pref;
-  editVacation.checked=e.vacation;
-  editModal.style.display="flex";
-}
-function closeModal(){editModal.style.display="none";}
-function saveEdit(){
-  const e=employees[editingIndex];
-  e.name=editName.value;
-  e.type=editType.value;
-  e.pref=editPref.value;
-  e.vacation=editVacation.checked;
-  reorderSeniority(); saveAll(); renderEmployees(); closeModal();
-}
-function retireEmployee(){
-  if(!confirm("Retire employee?"))return;
-  employees.splice(editingIndex,1);
-  reorderSeniority(); saveAll(); renderEmployees(); closeModal();
-}
-
-function addEvent(){
-  events.push({
-    name:eventName.value,
-    date:eventDate.value,
-    start:eventStart.value,
-    end:eventEnd.value,
-    servers:Number(eventServers.value)
-  });
-  saveAll(); renderEvents();
-}
-
-function renderEvents(){
-  eventTable.innerHTML="";
-  events.forEach(e=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${e.date}</td><td>${e.name}</td>
-    <td>${e.start}-${e.end}</td><td>${e.servers}</td>`;
-    eventTable.appendChild(tr);
-  });
-}
 
 function hoursBetween(a,b){
   return (new Date("1970-01-01T"+b)-new Date("1970-01-01T"+a))/36e5;
 }
 
+function hourClass(h){
+  if(h > 8) return "hour-ot";
+  if(h < 4) return "hour-low";
+  return "hour-"+Math.round(h);
+}
+
+function weekday(date){
+  return ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date(date).getDay()];
+}
+
 function generateSchedule(){
   scheduleTable.innerHTML="";
-  let hoursWorked={};
-  employees.forEach(e=>hoursWorked[e.name]=0);
+  let weekly = {};
+
+  // sort events by date then time
+  events.sort((a,b)=>{
+    if(a.date!==b.date) return a.date.localeCompare(b.date);
+    return a.start.localeCompare(b.start);
+  });
 
   events.forEach(ev=>{
-    let needed=ev.servers;
-    const evHours=hoursBetween(ev.start,ev.end);
+    const day = weekday(ev.date);
+    if(!weekly[ev.date]) weekly[ev.date]=[];
 
-    let pool=employees
+    let needed = ev.servers;
+    const hours = hoursBetween(ev.start, ev.end);
+
+    let pool = employees
       .filter(e=>!e.vacation)
-      .sort((a,b)=>{
-        if(a.pref===b.pref)return a.seniority-b.seniority;
-        if(a.pref===timeBucket(ev.start))return -1;
-        if(b.pref===timeBucket(ev.start))return 1;
-        return a.seniority-b.seniority;
-      });
+      .sort((a,b)=>a.seniority-b.seniority);
 
     for(const emp of pool){
-      if(needed<=0)break;
-      hoursWorked[emp.name]+=evHours;
-      const tr=document.createElement("tr");
-      tr.classList.add("schedule");
-      tr.innerHTML=`<td>${ev.name}</td><td>${emp.name}</td><td>${evHours}</td>`;
-      scheduleTable.appendChild(tr);
+      if(needed<=0) break;
+
+      weekly[ev.date].push({
+        date: ev.date,
+        day,
+        event: ev.name,
+        time: ev.start+"–"+ev.end,
+        emp: emp.name,
+        hours
+      });
+
       needed--;
     }
-    if(needed>0){
+  });
+
+  Object.keys(weekly).forEach(date=>{
+    weekly[date].forEach(row=>{
       const tr=document.createElement("tr");
-      tr.innerHTML=`<td>${ev.name}</td><td colspan="2">⚠ Not enough staff</td>`;
+      tr.classList.add(hourClass(row.hours));
+      tr.innerHTML=`
+        <td>${row.date}</td>
+        <td>${row.day}</td>
+        <td>${row.event}</td>
+        <td>${row.time}</td>
+        <td>${row.emp}</td>
+        <td>${row.hours}</td>
+      `;
       scheduleTable.appendChild(tr);
-    }
+    });
   });
 }
-
-function timeBucket(t){
-  const h=Number(t.split(":")[0]);
-  if(h<12)return "Morning";
-  if(h<17)return "Midday";
-  return "Night";
-}
-
-renderEmployees(); renderEvents();
 </script>
+
 </body>
 </html>
