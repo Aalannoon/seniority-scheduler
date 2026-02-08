@@ -54,10 +54,27 @@ body.light-mode button { background:#007bff; color:#fff; }
    TABLES
 ========================= */
 table { border-collapse:collapse; width:100%; margin-top:10px;
-        border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+        border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.3); table-layout: fixed; }
 th, td { padding:10px; text-align:center; border-bottom:1px solid #444; transition:0.3s; }
-th { background:#4e9af1; color:#fff; position:sticky; top:0; }
+th { background:#4e9af1; color:#fff; position:sticky; top:0; z-index:2; }
 tr:nth-child(even) { background: rgba(255,255,255,0.05); }
+
+/* Fixed first column */
+.schedule-table-container { overflow-x:auto; position: relative; }
+#scheduleTable th:first-child,
+#scheduleTable td:first-child {
+  position: sticky;
+  left: 0;
+  background: #3a3a50;
+  z-index:3;
+}
+body.light-mode #scheduleTable th:first-child,
+body.light-mode #scheduleTable td:first-child {
+  background: #ddd;
+  color: #333;
+}
+
+/* Employee row separation */
 .employee-row td { border-top:3px solid #888; }
 
 /* =========================
@@ -77,7 +94,6 @@ tr:nth-child(even) { background: rgba(255,255,255,0.05); }
 /* =========================
    VISUAL ENHANCEMENTS (#6)
 ========================= */
-/* Hover on shift cells */
 td:hover {
   transform: scale(1.05);
   transition: transform 0.15s ease-in-out, box-shadow 0.15s;
@@ -86,7 +102,6 @@ td:hover {
   position: relative;
 }
 
-/* Employee row shadow separation */
 .employee-row {
   transition: background 0.2s, box-shadow 0.2s;
   border-radius: 6px;
@@ -99,7 +114,6 @@ td:hover {
   box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 
-/* Smooth tab transition */
 .tab {
   opacity: 0;
   transform: translateY(10px);
@@ -116,7 +130,7 @@ td:hover {
 /* =========================
    RESPONSIVENESS
 ========================= */
-table { display:block; overflow-x:auto; }
+table { display:block; }
 
 /* =========================
    PRINT / PDF
@@ -131,10 +145,8 @@ table { display:block; overflow-x:auto; }
 <body>
 <h1 id="weekHeader"></h1>
 
-<!-- Dark Mode Toggle -->
 <button id="toggleDarkMode" onclick="toggleDarkMode()">Toggle Dark Mode</button>
 
-<!-- Tabs -->
 <div class="tabs">
   <button id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
   <button id="tabEvBtn" onclick="showTab('eventsTab')">Events</button>
@@ -142,7 +154,6 @@ table { display:block; overflow-x:auto; }
   <button onclick="window.print()">Export PDF</button>
 </div>
 
-<!-- EMPLOYEES TAB -->
 <div id="employeesTab" class="tab">
   <h2>Employees</h2>
   <input id="empName" placeholder="Name" />
@@ -165,7 +176,6 @@ table { display:block; overflow-x:auto; }
   </table>
 </div>
 
-<!-- EVENTS TAB -->
 <div id="eventsTab" class="tab">
   <h2>Events (Manager Only)</h2>
   <input id="eventName" placeholder="Event Name" />
@@ -185,35 +195,32 @@ table { display:block; overflow-x:auto; }
   </table>
 </div>
 
-<!-- SCHEDULE TAB -->
 <div id="scheduleTab" class="tab">
   <h2>Schedule</h2>
   <button onclick="generateSchedule()">Generate Schedule</button>
-  <table id="scheduleTable"></table>
+  <div class="schedule-table-container">
+    <table id="scheduleTable"></table>
+  </div>
 </div>
 
 <script>
-// ==========================
-// DATA MODELS
+// DATA
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
 function saveData(){ localStorage.setItem("employees", JSON.stringify(employees)); localStorage.setItem("events", JSON.stringify(events)); }
 
-// ==========================
 // TAB CONTROL
 function showTab(id){
   document.querySelectorAll(".tab").forEach(t=>t.style.display="none");
   document.getElementById(id).style.display="block";
 }
 
-// ==========================
 // DATE HELPERS
 function getWeekStart(date=new Date()){ const d = new Date(date); const day = d.getDay() || 7; if(day!==1) d.setDate(d.getDate()-day+1); return d;}
 function formatDateISO(date){ return date.toISOString().split("T")[0]; }
 function getWeekDays(){ const start=getWeekStart(); const days=[]; for(let i=0;i<7;i++){ const d=new Date(start); d.setDate(start.getDate()+i); days.push(d);} return days;}
 
-// ==========================
-// EMPLOYEES FUNCTIONS
+// EMPLOYEES
 function addEmployee(){
   const name=document.getElementById("empName").value.trim();
   const type=document.getElementById("empType").value;
@@ -239,8 +246,7 @@ function renderEmployees(){
   });
 }
 
-// ==========================
-// EVENTS FUNCTIONS
+// EVENTS
 function addEvent(){
   const name=document.getElementById("eventName").value.trim();
   const date=document.getElementById("eventDate").value;
@@ -265,7 +271,6 @@ function renderEvents(){
   });
 }
 
-// ==========================
 // PREFERENCE LOGIC
 function filterByPreference(employee,eventHour){
   if(!employee.prefStart) return true;
@@ -273,8 +278,7 @@ function filterByPreference(employee,eventHour){
   return eventHour>=prefH;
 }
 
-// ==========================
-// SCHEDULING ENGINE
+// SCHEDULING
 function generateSchedule(){
   const table=document.getElementById("scheduleTable");
   table.innerHTML="";
@@ -305,7 +309,6 @@ function generateSchedule(){
   sortedEmps.forEach(e=>delete e.shiftAssigned);
 }
 
-// ==========================
 // ACTIVE TAB & DARK MODE
 function setActiveTabButton(tabId){
   document.querySelectorAll('.tabs button').forEach(btn=>btn.classList.remove('active'));
@@ -319,7 +322,6 @@ window.addEventListener('DOMContentLoaded',()=>setActiveTabButton('employeesTab'
 
 function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); document.body.classList.toggle('light-mode'); }
 
-// ==========================
 // INITIAL RENDER
 renderEmployees();
 renderEvents();
