@@ -347,11 +347,16 @@ function generateSchedule(){
     days.map(d=>`<th>${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</th>`).join("")+
     "<th>Total</th></tr>";
 
+  // ✅ ADDED: Explicitly allow schedule generation even when there are zero events
+  // This guarantees blank schedules still render employees + week view
   employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0,row=`<tr><td>${emp.name}</td>`;
     days.forEach(d=>{
       const ev=events.find(e=>e.date===iso(d));
-      if(!ev||emp.vacation||emp.sick){ row+="<td></td>"; return; }
+      if(!ev || emp.vacation || emp.sick){
+        row+="<td></td>";
+        return;
+      }
       const s=normalizeHours(ev.start,ev.end);
       total+=s.h;
       row+=`<td class="${s.cls}">${s.h}h</td>`;
