@@ -111,7 +111,7 @@ body.light-mode #scheduleTable td:first-child {
   font-style:italic;
 }
 
-/* TAB VISIBILITY — FIX */
+/* TAB VISIBILITY */
 .tab {
   display:block;
   visibility:hidden;
@@ -129,7 +129,7 @@ body.light-mode #scheduleTable td:first-child {
   transform: translateY(0);
 }
 
-/* PRINT/PDF */
+/* PRINT */
 @media print {
   body { margin:0; }
   .tabs, button { display:none; }
@@ -177,7 +177,10 @@ body.light-mode #scheduleTable td:first-child {
 
   <table>
     <thead>
-      <tr><th>Name</th><th>Date</th><th>Guests</th><th>Staff Needed</th><th>Hours</th></tr>
+      <tr>
+        <th>Name</th><th>Date</th><th>Guests</th>
+        <th>Staff Needed</th><th>Hours</th><th>Delete</th>
+      </tr>
     </thead>
     <tbody id="eventsTable"></tbody>
   </table>
@@ -201,13 +204,11 @@ function saveData(){
   localStorage.setItem("events", JSON.stringify(events));
 }
 
-/* FIXED TAB LOGIC */
+/* TABS */
 function showTab(id){
-  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
-
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
   document.getElementById(id).classList.add("active");
-
   if(id==="employeesTab") tabEmpBtn.classList.add("active");
   if(id==="eventsTab") tabEvBtn.classList.add("active");
   if(id==="scheduleTab") tabSchBtn.classList.add("active");
@@ -254,11 +255,22 @@ function addEvent(){
 }
 function renderEvents(){
   eventsTable.innerHTML="";
-  events.forEach(ev=>{
+  events.forEach((ev,i)=>{
     eventsTable.innerHTML+=`
-      <tr><td>${ev.name}</td><td>${ev.date}</td>
-      <td>${ev.guests}</td><td>${ev.staffNeeded}</td><td>${ev.hours}</td></tr>`;
+      <tr>
+        <td>${ev.name}</td><td>${ev.date}</td>
+        <td>${ev.guests}</td><td>${ev.staffNeeded}</td>
+        <td>${ev.hours}</td>
+        <td><button style="background:#c0392b" onclick="deleteEvent(${i})">Delete</button></td>
+      </tr>`;
   });
+}
+function deleteEvent(i){
+  if(!confirm("Delete this event?")) return;
+  events.splice(i,1);
+  saveData();
+  renderEvents();
+  generateSchedule();
 }
 
 /* PREF */
@@ -270,12 +282,13 @@ function filterByPreference(emp,h){
 /* SCHEDULE */
 function getWeekStart(d=new Date()){
   d=new Date(d); const day=d.getDay()||7;
-  if(day!==1) d.setDate(d.getDate()-day+1); return d;
+  if(day!==1) d.setDate(d.getDate()-day+1);
+  return d;
 }
 function formatDateISO(d){ return d.toISOString().split("T")[0]; }
 function getWeekDays(){
   const s=getWeekStart(), days=[];
-  for(let i=0;i<7;i++){ const d=new Date(s); d.setDate(s.getDate()+i); days.push(d);}
+  for(let i=0;i<7;i++){ const d=new Date(s); d.setDate(s.getDate()+i); days.push(d); }
   return days;
 }
 
@@ -293,8 +306,13 @@ function generateSchedule(){
       if(emp.sick) return row+=`<td class="status-sick">Sick</td>`;
       const ev=events.find(e=>e.date===iso);
       if(!ev||emp.assigned) return row+="<td></td>";
-      if(!filterByPreference(emp,ev.hours)) return row+="<td></td>";
-      let h=Math.max(4,ev.hours); emp.assigned=true;
+
+      const eventHours = Number(ev.hours);
+      if(isNaN(eventHours)) return row+="<td></td>";
+
+      if(!filterByPreference(emp,eventHours)) return row+="<td></td>";
+      let h=Math.max(4,eventHours);
+      emp.assigned=true;
       const cls=h<=4?'shift-4':h<=6?'shift-6':h<=8.5?'shift-8':'shift-ot';
       row+=`<td class="${cls}" title="${ev.name}">${h}h</td>`;
     });
