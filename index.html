@@ -596,6 +596,88 @@ function buildShiftFromEvent(ev){
     internalHours
   };
 }
+/* ===== ADD-ON: Clear Day Button (NO REMOVALS) ===== */
+
+function clearDay(dateStr){
+  if(!confirm("Clear all shifts for this day?")) return;
+
+  // Remove manual edits for this day
+  Object.keys(manualEdits).forEach(key=>{
+    if(key.endsWith("_"+dateStr)){
+      delete manualEdits[key];
+    }
+  });
+
+  // Remove auto-generated shifts by temporarily ignoring events that day
+  // (events stay saved — schedule just clears)
+  save();
+  generateSchedule();
+}
+
+/* Patch header to add clear buttons */
+const _origGenerateScheduleWithClear = generateSchedule;
+generateSchedule = function(){
+  scheduleTable.innerHTML="";
+  const start=getWeekStart();
+  const days=[...Array(7)].map((_,i)=>{
+    const d=new Date(start);
+    d.setDate(start.getDate()+i);
+    return d;
+  });
+
+  weekHeader.textContent =
+    `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
+
+  scheduleTable.innerHTML =
+    "<tr><th>Employee</th>" +
+    days.map(d=>{
+      const ds = iso(d);
+      return `
+        <th>
+          ${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}
+          <br>
+          <button class="delete" style="margin-top:4px"
+            onclick="clearDay('${ds}')">🗑</button>
+        </th>`;
+    }).join("") +
+    "<th>Total</th></tr>";
+
+  // Run original row logic
+  employees.filter(e=>!e.retired).forEach(emp=>{
+    let total=0;
+    let row=`<tr><td>${emp.name}</td>`;
+
+    days.forEach(d=>{
+      const key=emp.id+"_"+iso(d);
+
+      if(manualEdits[key]){
+        total+=manualEdits[key];
+        row+=`<td onclick="editScheduleCell('${emp.id}','${iso(d)}')">
+              ${manualEdits[key]}h
+              </td>`;
+        return;
+      }
+
+      const ev=events.find(e=>e.date===iso(d));
+      if(!ev || emp.vacation || emp.sick){
+        row+=`<td onclick="editScheduleCell('${emp.id}','${iso(d)}')"></td>`;
+        return;
+      }
+
+      const s=normalizeHours(ev.start,ev.end);
+      total+=s.h;
+      row+=`<td class="${s.cls}"
+            onclick="editScheduleCell('${emp.id}','${iso(d)}')">
+            ${s.h}h
+            </td>`;
+    });
+
+    row+=`<td><strong>${total}h</strong></td></tr>`;
+    scheduleTable.innerHTML+=row;
+  });
+};
+
+/* ===== END ADD-ON ===== */
 </script>
 </body>
 </html>
