@@ -340,8 +340,15 @@ function generateSchedule(){
         row+=`<td onclick="editScheduleCell('${emp.id}','${iso(d)}')"></td>`;
         return;
       }
-      const s=normalizeHours(ev.start,ev.end);
-      total+=s.h;
+      const s = normalizeHours(ev.start, ev.end);
+const t = calculateSmartShift(ev, s.h);
+total += s.h;
+
+row+=`<td class="${getShiftClassByHours(s.h)}"
+      onclick="editScheduleCell('${emp.id}','${iso(d)}')">
+      ${s.h}h<br>
+      <small>${timeStr(t.start)}–${timeStr(t.end)}</small>
+      </td>`;
       row+=`<td class="${s.cls}" onclick="editScheduleCell('${emp.id}','${iso(d)}')">${s.h}h</td>`;
     });
     row+=`<td><strong>${total}h</strong></td></tr>`;
