@@ -671,12 +671,16 @@ generateSchedule = function(){
         return;
       }
 
-      const s=normalizeHours(ev.start,ev.end);
-      total+=s.h;
-      row+=`<td class="${s.cls}"
-            onclick="editScheduleCell('${emp.id}','${iso(d)}')">
-            ${s.h}h
-            </td>`;
+const s = normalizeHours(ev.start, ev.end);
+const t = calculateSmartShift(ev, s.h);
+
+total += s.h;
+
+row+=`<td class="${s.cls}"
+      onclick="editScheduleCell('${emp.id}','${iso(d)}')">
+      ${s.h}h<br>
+      <small>${timeStr(t.start)}–${timeStr(t.end)}</small>
+      </td>`;
     });
 
     row+=`<td><strong>${total}h</strong></td></tr>`;
