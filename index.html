@@ -117,73 +117,6 @@ th { background:#4e9af1; color:#fff; font-weight: bold; }
 td[onclick], td.clickable { cursor:pointer; }
 td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 
-/* AUDIT EXPLANATION */
-.audit-explanation {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #2e2e3d;
-  border: 2px solid #4e9af1;
-  border-radius: 6px;
-  padding: 10px;
-  min-width: 250px;
-  max-width: 350px;
-  z-index: 1000;
-  display: none;
-  margin-bottom: 5px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.audit-explanation::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 8px solid transparent;
-  border-top-color: #4e9af1;
-}
-
-.audit-explanation-title {
-  font-weight: bold;
-  color: #4e9af1;
-  margin-bottom: 5px;
-  border-bottom: 1px solid #4e9af1;
-  padding-bottom: 5px;
-}
-
-.audit-explanation-item {
-  margin: 5px 0;
-  padding-left: 15px;
-  position: relative;
-}
-
-.audit-explanation-item::before {
-  content: '•';
-  position: absolute;
-  left: 5px;
-  color: #27ae60;
-}
-
-/* Mobile audit explanation */
-@media (max-width: 768px) {
-  .audit-explanation {
-    position: fixed;
-    bottom: 20px;
-    left: 10px;
-    right: 10px;
-    transform: none;
-    max-width: none;
-  }
-  
-  .audit-explanation::after {
-    display: none;
-  }
-}
-
 /* TOOLTIP */
 .tooltip {
   position: relative;
@@ -2468,55 +2401,8 @@ function displaySchedule(){
           cell.innerHTML = `${h}h`;
         }
         
-        // NEW: Add audit explanation if available
-        const hasAuditReason = assignmentReasons[key];
-        if(hasAuditReason) {
-          // Add indicator that audit info is available
-          const infoIcon = document.createElement('span');
-          infoIcon.innerHTML = ' ℹ️';
-          infoIcon.style.fontSize = '10px';
-          infoIcon.style.opacity = '0.7';
-          cell.appendChild(infoIcon);
-          
-          // Create audit tooltip (hidden by default)
-          const auditDiv = document.createElement('div');
-          auditDiv.className = 'audit-explanation';
-          
-          // Safety check: ensure assignmentReasons is an array
-          const reasons = Array.isArray(assignmentReasons[key]) ? assignmentReasons[key] : [];
-          
-          auditDiv.innerHTML = `
-            <div class="audit-explanation-title">Why ${emp.name} was assigned:</div>
-            ${reasons.map(reason => 
-              reason === '' ? '<br>' : `<div class="audit-explanation-item">${reason}</div>`
-            ).join('')}
-          `;
-          cell.appendChild(auditDiv);
-          
-          // Desktop: Show on hover
-          cell.onmouseenter = function() {
-            auditDiv.style.display = 'block';
-          };
-          cell.onmouseleave = function() {
-            auditDiv.style.display = 'none';
-          };
-          
-          // Desktop & Mobile: Click handler for audit and edit
-          cell.onclick = function(e) {
-            if(auditDiv.style.display === 'block') {
-              auditDiv.style.display = 'none';
-              // Then open edit dialog
-              editScheduleCell(emp.id, dateStr);
-            } else {
-              // First click: show audit
-              auditDiv.style.display = 'block';
-              e.stopPropagation();
-            }
-          };
-        } else {
-          // No audit reason - just edit
-          cell.onclick = () => editScheduleCell(emp.id, dateStr);
-        }
+        // Simple click to edit
+        cell.onclick = () => editScheduleCell(emp.id, dateStr);
         
         row.appendChild(cell);
         return;
