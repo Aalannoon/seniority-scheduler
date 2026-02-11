@@ -751,31 +751,40 @@ function editScheduleCell(empId, date){
   const ev = events.find(e => e.date === date);
   
   let currentEdit = manualEdits[key];
-  let dialog = `Edit shift for ${emp.name} on ${date}:\n\n`;
-  dialog += `Options:\n`;
-  dialog += `1. Hours only: "5"\n`;
-  dialog += `2. Hours + times: "6,09:00,15:30"\n`;
-  dialog += `3. Mark SICK: "sick"\n`;
-  dialog += `4. Mark VACATION: "vacation"\n`;
-  dialog += `5. Remove shift: "remove"\n`;
-  dialog += `6. Lock/unlock: "lock"\n\n`;
+  
+  // Create a clearer menu dialog
+  let dialog = "Edit shift for " + emp.name + " on " + date + ":\n\n";
+  dialog += "Enter shift times:\n";
+  dialog += "━━━━━━━━━━━━━━━━━━━━\n";
+  dialog += "SHIFT:\n";
+  dialog += "  6 09:00 15:30\n";
+  dialog += "  (hours start end)\n\n";
+  dialog += "STATUS:\n";
+  dialog += "  sick\n";
+  dialog += "  vacation\n\n";
+  dialog += "ACTIONS:\n";
+  dialog += "  lock\n";
+  dialog += "  clear\n";
+  dialog += "━━━━━━━━━━━━━━━━━━━━\n\n";
   
   if(lockedCells[key]) {
-    dialog += `🔒 LOCKED\n`;
+    dialog += "🔒 LOCKED\n\n";
   }
   
   if(currentEdit) {
     if(currentEdit.status === 'sick') {
-      dialog += `Current: SICK\n`;
+      dialog += "Current: SICK\n";
     } else if(currentEdit.status === 'vacation') {
-      dialog += `Current: VACATION\n`;
+      dialog += "Current: VACATION\n";
     } else if(currentEdit.start && currentEdit.end) {
-      dialog += `Current: ${currentEdit.hours}h (${currentEdit.start}-${currentEdit.end})\n`;
+      dialog += "Current: " + currentEdit.hours + "h (" + currentEdit.start + "-" + currentEdit.end + ")\n";
     } else {
-      dialog += `Current: ${currentEdit.hours || currentEdit}h\n`;
+      dialog += "Current: " + (currentEdit.hours || currentEdit) + "h (no times)\n";
     }
   } else if(ev) {
-    dialog += `Auto from event: ${ev.name}\n`;
+    dialog += "Event: " + ev.name + "\n";
+  } else {
+    dialog += "Current: (empty)\n";
   }
   
   const input = prompt(dialog);
@@ -791,12 +800,12 @@ function editScheduleCell(empId, date){
   }
   
   // Remove shift
-  if(trimmed === 'remove' || trimmed === '') {
+  if(trimmed === 'remove' || trimmed === 'clear' || trimmed === '') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : 'Auto-assigned';
     delete manualEdits[key];
     addAuditEntry('Shift Removed', empId, date, oldValue, null);
     save(); 
-    displaySchedule(); // Just refresh display
+    displaySchedule();
     return;
   }
   
@@ -806,34 +815,43 @@ function editScheduleCell(empId, date){
     manualEdits[key] = { status: 'sick' };
     addAuditEntry('Marked Sick', empId, date, oldValue, 'SICK');
     save();
-    displaySchedule(); // Just refresh display
+    displaySchedule();
     return;
   }
   
   // Mark as vacation
-  if(trimmed === 'vacation') {
+  if(trimmed === 'vacation' || trimmed === 'vac') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
     manualEdits[key] = { status: 'vacation' };
     addAuditEntry('Marked Vacation', empId, date, oldValue, 'VACATION');
     save();
-    displaySchedule(); // Just refresh display
+    displaySchedule();
     return;
   }
   
-  // Parse hours/times
-  const parts = input.split(',').map(p => p.trim());
+  // Parse shift input - MUST include times
+  let newEdit = null;
   
-  let newEdit;
-  if(parts.length === 1) {
-    newEdit = { hours: Number(parts[0]) };
-  } else if(parts.length === 3) {
-    newEdit = {
-      hours: Number(parts[0]),
-      start: parts[1],
-      end: parts[2]
-    };
-  } else {
-    alert('Invalid format');
+  const parts = input.trim().split(/\s+/);
+  
+  if(parts.length === 3) {
+    // Format: "6 09:00 15:30"
+    const hours = Number(parts[0]);
+    const start = parts[1];
+    const end = parts[2];
+    
+    // Validate time format
+    if(/^\d{1,2}:\d{2}$/.test(start) && /^\d{1,2}:\d{2}$/.test(end) && !isNaN(hours)) {
+      newEdit = {
+        hours: hours,
+        start: start,
+        end: end
+      };
+    }
+  }
+  
+  if(!newEdit) {
+    alert('Invalid format!\n\nMust include hours AND times:\n• Example: 6 09:00 15:30\n\nOr use:\n• sick\n• vacation\n• lock\n• clear');
     return;
   }
   
@@ -842,7 +860,7 @@ function editScheduleCell(empId, date){
   addAuditEntry('Shift Manually Edited', empId, date, oldValue, JSON.stringify(newEdit));
   
   save(); 
-  displaySchedule(); // Just refresh display
+  displaySchedule();
 }
 
 function clearDay(dateStr){
@@ -871,6 +889,23 @@ function generateSchedule(){
   });
   
   let shiftsCreated = 0;
+  let skippedDueToLimit = 0;
+  let understaffedEvents = []; // Track events that couldn't be fully staffed
+  
+  // First, count existing work days for each employee (manual edits)
+  const employeeWorkDays = {};
+  employees.filter(e => !e.retired).forEach(e => {
+    employeeWorkDays[e.id] = 0;
+    
+    // Count days that already have manual edits
+    days.forEach(d => {
+      const dateStr = iso(d);
+      const key = e.id + "_" + dateStr;
+      if(manualEdits[key] && manualEdits[key].status !== 'sick' && manualEdits[key].status !== 'vacation') {
+        employeeWorkDays[e.id]++;
+      }
+    });
+  });
   
   const assignments = assignEmployeesToWeek(days);
   
@@ -884,12 +919,27 @@ function generateSchedule(){
       return;
     }
     
+    const assignedCount = assignments[dateStr] ? assignments[dateStr].length : 0;
+    const requiredStaff = ev.staff;
+    
+    // Check if event is understaffed
+    if(assignedCount < requiredStaff) {
+      understaffedEvents.push({
+        name: ev.name,
+        date: dateStr,
+        assigned: assignedCount,
+        required: requiredStaff,
+        shortage: requiredStaff - assignedCount
+      });
+      console.log(`⚠️ ${ev.name} on ${dateStr}: only ${assignedCount}/${requiredStaff} staff assigned`);
+    }
+    
     if(!assignments[dateStr]) {
-      console.log(`No assignments for ${dateStr}`);
+      console.log(`No assignments for ${dateStr} (event: ${ev.name})`);
       return;
     }
     
-    console.log(`Event: ${ev.name} on ${dateStr}, assigned: ${assignments[dateStr].length} employees`);
+    console.log(`Event: ${ev.name} on ${dateStr}, assigned: ${assignedCount}/${requiredStaff} employees`);
     
     assignments[dateStr].forEach(empId => {
       const key = empId + "_" + dateStr;
@@ -901,6 +951,14 @@ function generateSchedule(){
       }
       if(manualEdits[key]) {
         console.log(`Skipping ${key} - already has manual edit`);
+        return;
+      }
+      
+      // Check 5-day limit (including already scheduled days)
+      if(employeeWorkDays[empId] >= 5) {
+        const emp = employees.find(e => e.id === empId);
+        console.log(`Skipping ${emp.name} on ${dateStr} - already worked 5 days this week`);
+        skippedDueToLimit++;
         return;
       }
       
@@ -916,20 +974,42 @@ function generateSchedule(){
         generated: true // Mark as auto-generated
       };
       
+      // Increment work day counter
+      employeeWorkDays[empId]++;
+      
       shiftsCreated++;
-      console.log(`Created shift for ${key}: ${s.h}h`);
+      console.log(`Created shift for ${key}: ${s.h}h (work days: ${employeeWorkDays[empId]})`);
     });
   });
   
   console.log(`Total shifts created: ${shiftsCreated}`);
+  console.log(`Shifts skipped due to 5-day limit: ${skippedDueToLimit}`);
+  console.log(`Understaffed events: ${understaffedEvents.length}`);
   
+  // Build alert message
+  let message = '';
   if(shiftsCreated === 0) {
-    alert(`No shifts were created. Make sure you have:\n1. Events in the current week\n2. Available employees (not retired/sick/vacation)\n3. Unlocked cells`);
+    message = `No shifts were created. Make sure you have:\n1. Events in the current week\n2. Available employees (not retired/sick/vacation)\n3. Unlocked cells\n4. Employees haven't reached 5-day work limit`;
   } else {
-    alert(`Created ${shiftsCreated} shifts!`);
+    message = `✅ Created ${shiftsCreated} shifts!`;
+    
+    if(skippedDueToLimit > 0) {
+      message += `\n\n⚠️ ${skippedDueToLimit} potential shifts skipped (5-day limit)`;
+    }
+    
+    if(understaffedEvents.length > 0) {
+      message += `\n\n🚨 UNDERSTAFFED EVENTS:\n`;
+      understaffedEvents.forEach(evt => {
+        const dateObj = new Date(evt.date);
+        const dateDisplay = dateObj.toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'});
+        message += `\n• ${evt.name} (${dateDisplay})\n  Needs ${evt.shortage} more staff (${evt.assigned}/${evt.required})`;
+      });
+      message += `\n\nYou may need to:\n- Manually assign more employees\n- Hire additional staff\n- Reduce event requirements`;
+    }
   }
+  alert(message);
   
-  addAuditEntry('Schedule Generated', null, null, null, `Generated ${shiftsCreated} shifts from events`);
+  addAuditEntry('Schedule Generated', null, null, null, `Generated ${shiftsCreated} shifts, ${understaffedEvents.length} understaffed events`);
   save();
   displaySchedule();
 }
@@ -961,11 +1041,12 @@ function displaySchedule(){
     headerRow.appendChild(th);
   });
   
-  headerRow.innerHTML += '<th>Total</th>';
+  headerRow.innerHTML += '<th>Total</th><th>Days</th>';
   scheduleTable.appendChild(headerRow);
 
   employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0;
+    let daysWorked=0;
     const row = document.createElement('tr');
     
     // Add row lock toggle
@@ -1017,6 +1098,7 @@ function displaySchedule(){
         
         const h = edit.hours || edit;
         total += h;
+        daysWorked++; // Count this as a worked day
         cell.className += ' ' + getShiftClassByHours(h);
         
         if(edit.start && edit.end) {
@@ -1043,6 +1125,21 @@ function displaySchedule(){
     const totalCell = document.createElement('td');
     totalCell.innerHTML = `<strong>${total}h</strong>`;
     row.appendChild(totalCell);
+    
+    // NEW: Add days worked column
+    const daysCell = document.createElement('td');
+    daysCell.innerHTML = `<strong>${daysWorked}/5</strong>`;
+    if(daysWorked >= 5) {
+      daysCell.style.background = '#e74c3c';
+      daysCell.style.color = '#fff';
+      daysCell.title = 'Maximum 5 days reached';
+    } else if(daysWorked >= 4) {
+      daysCell.style.background = '#f39c12';
+      daysCell.style.color = '#000';
+      daysCell.title = 'Close to 5-day limit';
+    }
+    row.appendChild(daysCell);
+    
     scheduleTable.appendChild(row);
   });
   
@@ -1063,10 +1160,12 @@ function assignEmployeesToWeek(days) {
   const assignments = {};
   const employeeShiftHistory = {};
   const employeeTotalHours = {};
+  const employeeWorkDays = {}; // NEW: Track days worked per week
   
   employees.filter(e => !e.retired).forEach(e => {
     employeeShiftHistory[e.id] = null;
     employeeTotalHours[e.id] = 0;
+    employeeWorkDays[e.id] = 0; // Initialize work day counter
   });
   
   days.forEach(d => {
@@ -1097,6 +1196,13 @@ function assignEmployeesToWeek(days) {
           if(lockedCells[key] || manualEdits[key]) return false;
           // Skip if already assigned today
           if(emp.assignedToday) return false;
+          
+          // NEW: Skip if employee already worked 5 days this week
+          if(employeeWorkDays[emp.id] >= 5) {
+            console.log(`${emp.name} already worked 5 days this week, skipping`);
+            return false;
+          }
+          
           return true;
         })
         .map(emp => {
@@ -1141,6 +1247,9 @@ function assignEmployeesToWeek(days) {
         };
         
         employeeTotalHours[emp.id] += s.h;
+        
+        // NEW: Increment work day counter for this employee
+        employeeWorkDays[emp.id] += 1;
       });
       
       if(!assignments[dateStr]) {
