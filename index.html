@@ -13,10 +13,17 @@ body {
 }
 body.light-mode { background:#f8f9fa; color:#333; }
 
-h1 { font-size:26px; }
+h1 { font-size:26px; margin: 10px 0; }
 
 /* TABS */
-.tabs { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+.tabs { 
+  display:flex; 
+  gap:6px; 
+  margin-bottom:12px; 
+  flex-wrap:wrap; 
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .tabs button {
   padding:8px 14px;
   border:none;
@@ -25,6 +32,8 @@ h1 { font-size:26px; }
   cursor:pointer;
   background:#2e2e3d;
   color:#ccc;
+  white-space: nowrap;
+  min-height: 44px; /* Touch-friendly */
 }
 .tabs button.active { background:#4e9af1; color:#fff; }
 
@@ -34,21 +43,35 @@ input, select, button {
   padding:6px 10px;
   border-radius:6px;
   border:none;
+  font-size: 14px;
+  min-height: 40px; /* Touch-friendly */
 }
-button { background:#4e9af1; color:#fff; font-weight:bold; cursor:pointer; }
+button { 
+  background:#4e9af1; 
+  color:#fff; 
+  font-weight:bold; 
+  cursor:pointer;
+  touch-action: manipulation; /* Prevent double-tap zoom */
+}
 button.delete { background:#c0392b; }
 button.retire { background:#8e44ad; }
 button.print { background:#27ae60; }
 
 /* TABLE */
-table { border-collapse:collapse; width:100%; margin-top:10px; }
+table { 
+  border-collapse:collapse; 
+  width:100%; 
+  margin-top:10px;
+  display: table; /* Desktop default */
+}
 th, td {
   padding:8px;
   text-align:center;
   border:1px solid #555;
   position:relative;
+  min-width: 80px;
 }
-th { background:#4e9af1; color:#fff; }
+th { background:#4e9af1; color:#fff; font-weight: bold; }
 
 /* STATUS */
 .status-retired { background:#555; opacity:0.6; }
@@ -156,6 +179,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   padding: 15px;
   background: #2e2e3d;
   border-radius: 8px;
+  max-width: 100%;
 }
 .settings-section h3 {
   margin-top: 0;
@@ -165,12 +189,222 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 .setting-row label {
   min-width: 150px;
 }
 .setting-row input {
   width: 100px;
+}
+
+/* MOBILE SCHEDULE CARDS (hidden on desktop) */
+.mobile-schedule {
+  display: none;
+}
+
+.mobile-employee-card {
+  background: #2e2e3d;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.mobile-employee-card h3 {
+  margin: 0 0 10px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mobile-day-card {
+  background: #1e1e2f;
+  border-radius: 6px;
+  padding: 10px;
+  margin: 8px 0;
+  border-left: 4px solid #4e9af1;
+}
+
+.mobile-day-header {
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #4e9af1;
+}
+
+.mobile-shift-info {
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 5px;
+}
+
+.mobile-shift-empty {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+/* RESPONSIVE BREAKPOINTS */
+
+/* TABLET: 768px - 1024px */
+@media (max-width: 1024px) {
+  body {
+    margin: 10px;
+  }
+  
+  h1 {
+    font-size: 22px;
+  }
+  
+  .tabs button {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  
+  /* Make table scrollable horizontally on tablet */
+  .schedule-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  th, td {
+    padding: 6px;
+    font-size: 13px;
+    min-width: 70px;
+  }
+  
+  .settings-section {
+    padding: 10px;
+  }
+  
+  .setting-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .setting-row label {
+    min-width: auto;
+  }
+}
+
+/* MOBILE: < 768px */
+@media (max-width: 768px) {
+  body {
+    margin: 5px;
+  }
+  
+  h1 {
+    font-size: 18px;
+  }
+  
+  /* Stack tabs vertically on very small screens if needed */
+  .tabs {
+    gap: 4px;
+  }
+  
+  .tabs button {
+    padding: 8px 12px;
+    font-size: 12px;
+    flex: 1 1 auto;
+  }
+  
+  /* Hide desktop table on mobile */
+  #scheduleTable {
+    display: none;
+  }
+  
+  /* Show mobile card layout */
+  .mobile-schedule {
+    display: block;
+  }
+  
+  /* Make inputs full width on mobile */
+  input, select, textarea {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  /* Stack buttons vertically on mobile */
+  button {
+    display: block;
+    width: 100%;
+    margin: 4px 0;
+  }
+  
+  /* Exception: Keep tab buttons inline */
+  .tabs button {
+    display: inline-block;
+    width: auto;
+  }
+  
+  /* Exception: Keep small utility buttons inline */
+  button.delete,
+  button.clear-day-btn {
+    display: inline-block;
+    width: auto;
+    padding: 4px 8px;
+    font-size: 10px;
+    min-height: auto;
+  }
+  
+  /* Tables in other tabs scroll horizontally */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+  
+  thead, tbody, tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+  }
+  
+  th, td {
+    padding: 4px;
+    font-size: 12px;
+    min-width: 60px;
+  }
+  
+  .audit-entry {
+    font-size: 12px;
+    padding: 6px;
+  }
+  
+  .settings-section {
+    padding: 8px;
+  }
+  
+  .setting-row input {
+    width: 100%;
+  }
+}
+
+/* VERY SMALL MOBILE: < 480px */
+@media (max-width: 480px) {
+  h1 {
+    font-size: 16px;
+  }
+  
+  .tabs button {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  
+  .mobile-employee-card {
+    padding: 10px;
+  }
+  
+  .mobile-day-card {
+    padding: 8px;
+  }
+  
+  th, td {
+    padding: 3px;
+    font-size: 11px;
+    min-width: 50px;
+  }
 }
 </style>
 </head>
@@ -258,7 +492,11 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 <button onclick="regenerateSchedule()">Regenerate</button>
 <button id="globalLockBtn" onclick="toggleGlobalLock()" style="background:#f39c12;">🔓 Unlock Schedule</button>
 
-<table id="scheduleTable"></table>
+<div class="schedule-container">
+  <table id="scheduleTable"></table>
+</div>
+
+<div id="mobileSchedule" class="mobile-schedule"></div>
 </div>
 
 <!-- AUDIT LOG -->
@@ -362,7 +600,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   <div style="margin-top: 30px; padding: 15px; background: #2e2e3d; border-radius: 8px; max-width: 600px;">
     <h4 style="margin-top: 0;">Alternative Contact Methods:</h4>
     <p style="margin: 5px 0;">
-      📧 Email directly: <a href="mailto:Alialannoon@gmail.com" style="color: #4e9af1;">Alialannoon@gmail.com</a>
+      📧 Email directly: <a href="/cdn-cgi/l/email-protection#99d8f5f0f8f5f8f7f7f6f6f7d9fef4f8f0f5b7faf6f4" style="color: #4e9af1;"><span class="__cf_email__" data-cfemail="c081aca9a1aca1aeaeafafae80a7ada1a9aceea3afad">[email&#160;protected]</span></a>
     </p>
     <p style="margin: 5px 0; color: #95a5a6; font-size: 14px;">
       We typically respond within 1-2 business days.
@@ -371,7 +609,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
 let manualEdits = JSON.parse(localStorage.getItem("manualEdits") || "{}");
@@ -1075,6 +1313,9 @@ function generateSchedule(){
 function displaySchedule(){
   // This function just DISPLAYS the current schedule (manual edits + locked cells)
   scheduleTable.innerHTML="";
+  const mobileSchedule = document.getElementById('mobileSchedule');
+  mobileSchedule.innerHTML = "";
+  
   const start=getWeekStart();
   const days=[...Array(7)].map((_,i)=>{
     const d=new Date(start);
@@ -1084,6 +1325,7 @@ function displaySchedule(){
 
   weekHeader.textContent = `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
 
+  // ========== DESKTOP TABLE VIEW ==========
   const headerRow = document.createElement('tr');
   headerRow.innerHTML = '<th>🔒</th><th>Employee</th>';
   
@@ -1127,7 +1369,7 @@ function displaySchedule(){
       const key=emp.id+"_"+dateStr;
       const cell = document.createElement('td');
       cell.className = 'clickable';
-      cell.setAttribute('data-emp-id', emp.id); // Add data attribute for debugging
+      cell.setAttribute('data-emp-id', emp.id);
       cell.setAttribute('data-date', dateStr);
       
       const isLocked = lockedCells[key];
@@ -1184,7 +1426,7 @@ function displaySchedule(){
     totalCell.innerHTML = `<strong>${total}h</strong>`;
     row.appendChild(totalCell);
     
-    // NEW: Add days worked column
+    // Add days worked column
     const daysCell = document.createElement('td');
     daysCell.innerHTML = `<strong>${daysWorked}/5</strong>`;
     if(daysWorked >= 5) {
@@ -1199,6 +1441,115 @@ function displaySchedule(){
     row.appendChild(daysCell);
     
     scheduleTable.appendChild(row);
+  });
+  
+  // ========== MOBILE CARD VIEW ==========
+  employees.filter(e=>!e.retired).forEach(emp=>{
+    let totalHours = 0;
+    let totalDays = 0;
+    
+    const empCard = document.createElement('div');
+    empCard.className = 'mobile-employee-card';
+    
+    const empHeader = document.createElement('h3');
+    const isRowLocked = lockedRows[emp.id];
+    
+    const empNameSpan = document.createElement('span');
+    empNameSpan.textContent = emp.name;
+    
+    const lockSpan = document.createElement('span');
+    lockSpan.style.cursor = 'pointer';
+    lockSpan.style.fontSize = '20px';
+    lockSpan.textContent = isRowLocked ? '🔒' : '🔓';
+    lockSpan.title = isRowLocked ? 'Unlock row' : 'Lock row';
+    lockSpan.onclick = () => toggleRowLock(emp.id);
+    
+    empHeader.appendChild(empNameSpan);
+    empHeader.appendChild(lockSpan);
+    empCard.appendChild(empHeader);
+    
+    days.forEach(d => {
+      const dateStr = iso(d);
+      const key = emp.id + "_" + dateStr;
+      
+      const dayCard = document.createElement('div');
+      dayCard.className = 'mobile-day-card';
+      
+      const dayHeader = document.createElement('div');
+      dayHeader.className = 'mobile-day-header';
+      dayHeader.textContent = d.toLocaleDateString(undefined, {weekday: 'long', month: 'short', day: 'numeric'});
+      dayCard.appendChild(dayHeader);
+      
+      const shiftInfo = document.createElement('div');
+      shiftInfo.className = 'mobile-shift-info';
+      shiftInfo.onclick = () => editScheduleCell(emp.id, dateStr);
+      
+      const isLocked = lockedCells[key];
+      
+      if(manualEdits[key]) {
+        const edit = manualEdits[key];
+        
+        if(edit.status === 'sick') {
+          shiftInfo.style.background = '#95a5a6';
+          shiftInfo.innerHTML = '<strong>SICK</strong>';
+        } else if(edit.status === 'vacation') {
+          shiftInfo.style.background = '#3498db';
+          shiftInfo.innerHTML = '<strong>VACATION</strong>';
+        } else {
+          const h = edit.hours || edit;
+          totalHours += h;
+          totalDays++;
+          
+          const shiftClass = getShiftClassByHours(h);
+          shiftInfo.className += ' ' + shiftClass;
+          
+          if(isLocked) {
+            shiftInfo.innerHTML = `🔒 <strong>${h}h</strong>`;
+          } else {
+            shiftInfo.innerHTML = `<strong>${h}h</strong>`;
+          }
+          
+          if(edit.start && edit.end) {
+            shiftInfo.innerHTML += `<br><small>${edit.start} – ${edit.end}</small>`;
+          }
+          
+          const conflicts = detectConflicts(emp.id, dateStr, edit.start, edit.end);
+          if(conflicts.length > 0) {
+            shiftInfo.innerHTML = '⚠️ ' + shiftInfo.innerHTML;
+            shiftInfo.title = 'Conflict: ' + conflicts.join(', ');
+          }
+        }
+      } else {
+        shiftInfo.className += ' mobile-shift-empty';
+        shiftInfo.innerHTML = isLocked ? '🔒 Off' : 'Off';
+      }
+      
+      dayCard.appendChild(shiftInfo);
+      empCard.appendChild(dayCard);
+    });
+    
+    // Add summary footer
+    const summary = document.createElement('div');
+    summary.style.marginTop = '10px';
+    summary.style.padding = '10px';
+    summary.style.background = '#1e1e2f';
+    summary.style.borderRadius = '6px';
+    summary.style.display = 'flex';
+    summary.style.justifyContent = 'space-between';
+    
+    const totalHtml = `<strong>Total: ${totalHours}h</strong>`;
+    let daysHtml = `<strong>Days: ${totalDays}/5</strong>`;
+    
+    if(totalDays >= 5) {
+      daysHtml = `<strong style="color:#e74c3c;">Days: ${totalDays}/5 ⚠️</strong>`;
+    } else if(totalDays >= 4) {
+      daysHtml = `<strong style="color:#f39c12;">Days: ${totalDays}/5</strong>`;
+    }
+    
+    summary.innerHTML = `<span>${totalHtml}</span><span>${daysHtml}</span>`;
+    empCard.appendChild(summary);
+    
+    mobileSchedule.appendChild(empCard);
   });
   
   // Update global lock button state
