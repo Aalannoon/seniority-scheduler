@@ -16,7 +16,7 @@ body.light-mode { background:#f8f9fa; color:#333; }
 h1 { font-size:26px; }
 
 /* TABS */
-.tabs { display:flex; gap:6px; margin-bottom:12px; }
+.tabs { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
 .tabs button {
   padding:8px 14px;
   border:none;
@@ -46,6 +46,7 @@ th, td {
   padding:8px;
   text-align:center;
   border:1px solid #555;
+  position:relative;
 }
 th { background:#4e9af1; color:#fff; }
 
@@ -60,9 +61,74 @@ th { background:#4e9af1; color:#fff; }
 .shift-8 { background:#f1c40f; color:#000; }  /* Yellow - 8 hours */
 .shift-ot { background:#9b59b6; }     /* Purple - overtime (>8) */
 
+/* LOCKED CELLS */
+.locked-cell {
+  border: 3px solid #f39c12 !important;
+  position: relative;
+}
+.locked-cell::after {
+  content: '🔒';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 10px;
+}
+
+/* CONFLICT CELLS */
+.conflict-cell {
+  border: 3px solid #e74c3c !important;
+  position: relative;
+}
+.conflict-cell::before {
+  content: '⚠️';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 10px;
+}
+
 /* CLICKABLE CELLS */
-td[onclick] { cursor:pointer; }
-td[onclick]:hover { outline:2px dashed #4e9af1; }
+td[onclick], td.clickable { cursor:pointer; }
+td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
+
+/* TOOLTIP */
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 200px;
+  background-color: #555;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -100px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 12px;
+}
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* AUDIT LOG */
+.audit-entry {
+  padding: 8px;
+  margin: 4px 0;
+  background: #2e2e3d;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.audit-filters {
+  margin-bottom: 15px;
+}
 
 /* PRINT */
 @media print {
@@ -70,11 +136,35 @@ td[onclick]:hover { outline:2px dashed #4e9af1; }
   .tabs, button, input, select { display:none !important; }
   table { font-size:12px; }
   th { background:#ddd !important; color:#000 !important; }
+  .locked-cell::after, .conflict-cell::before { display: none; }
 }
 
 /* TABS */
 .tab { display:none; }
 .tab.active { display:block; }
+
+/* SETTINGS */
+.settings-section {
+  margin: 20px 0;
+  padding: 15px;
+  background: #2e2e3d;
+  border-radius: 8px;
+}
+.settings-section h3 {
+  margin-top: 0;
+}
+.setting-row {
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.setting-row label {
+  min-width: 150px;
+}
+.setting-row input {
+  width: 100px;
+}
 </style>
 </head>
 
@@ -89,6 +179,8 @@ td[onclick]:hover { outline:2px dashed #4e9af1; }
   <button id="tabEmpBtn" onclick="showTab('employeesTab')">Employees</button>
   <button id="tabEvBtn" onclick="showTab('eventsTab')">Events</button>
   <button id="tabSchBtn" onclick="showTab('scheduleTab')">Schedule</button>
+  <button id="tabAuditBtn" onclick="showTab('auditTab')">Audit Log</button>
+  <button id="tabSettingsBtn" onclick="showTab('settingsTab')">Settings</button>
 </div>
 
 <!-- EMPLOYEES -->
@@ -160,10 +252,74 @@ td[onclick]:hover { outline:2px dashed #4e9af1; }
 <table id="scheduleTable"></table>
 </div>
 
+<!-- AUDIT LOG -->
+<div id="auditTab" class="tab">
+<h2>Audit Log</h2>
+
+<div class="audit-filters">
+  <input id="auditEmployee" placeholder="Filter by employee" />
+  <input id="auditDate" type="date" placeholder="Filter by date" />
+  <button onclick="filterAuditLog()">Filter</button>
+  <button onclick="clearAuditFilter()">Clear Filter</button>
+</div>
+
+<div id="auditLogContainer"></div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settingsTab" class="tab">
+<h2>Settings</h2>
+
+<div class="settings-section">
+  <h3>Staffing Ratios</h3>
+  <p>Set the recommended number of guests per server for each service type:</p>
+  
+  <div class="setting-row">
+    <label>Plated Service:</label>
+    <span>1 server per</span>
+    <input type="number" id="ratioPlated" value="20" min="1" />
+    <span>guests</span>
+  </div>
+  
+  <div class="setting-row">
+    <label>Buffet Service:</label>
+    <span>1 server per</span>
+    <input type="number" id="ratioBuffet" value="30" min="1" />
+    <span>guests</span>
+  </div>
+  
+  <div class="setting-row">
+    <label>Reception:</label>
+    <span>1 server per</span>
+    <input type="number" id="ratioReception" value="40" min="1" />
+    <span>guests</span>
+  </div>
+  
+  <div class="setting-row">
+    <label>Coffee Break:</label>
+    <span>1 server per</span>
+    <input type="number" id="ratioCoffee" value="50" min="1" />
+    <span>guests</span>
+  </div>
+  
+  <button onclick="saveSettings()">Save Settings</button>
+</div>
+</div>
+
 <script>
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
 let manualEdits = JSON.parse(localStorage.getItem("manualEdits") || "{}");
+let lockedCells = JSON.parse(localStorage.getItem("lockedCells") || "{}");
+let auditLog = JSON.parse(localStorage.getItem("auditLog") || "[]");
+let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
+  ratios: {
+    "Plated Service": 20,
+    "Buffet Service": 30,
+    "Reception": 40,
+    "Coffee Break": 50
+  }
+}));
 let editingEventId = null;
 let currentWeekOffset = 0;
 
@@ -171,6 +327,27 @@ function save(){
   localStorage.setItem("employees", JSON.stringify(employees));
   localStorage.setItem("events", JSON.stringify(events));
   localStorage.setItem("manualEdits", JSON.stringify(manualEdits));
+  localStorage.setItem("lockedCells", JSON.stringify(lockedCells));
+  localStorage.setItem("auditLog", JSON.stringify(auditLog));
+  localStorage.setItem("settings", JSON.stringify(settings));
+}
+
+function addAuditEntry(action, empId, date, oldValue, newValue){
+  const emp = employees.find(e => e.id === empId);
+  auditLog.unshift({
+    timestamp: new Date().toISOString(),
+    action,
+    employee: emp ? emp.name : 'Unknown',
+    employeeId: empId,
+    date,
+    oldValue,
+    newValue
+  });
+  
+  // Keep only last 1000 entries
+  if(auditLog.length > 1000) auditLog = auditLog.slice(0, 1000);
+  
+  save();
 }
 
 /* TABS */
@@ -181,24 +358,29 @@ function showTab(id){
   if(id==="employeesTab") tabEmpBtn.classList.add("active");
   if(id==="eventsTab") tabEvBtn.classList.add("active");
   if(id==="scheduleTab") { tabSchBtn.classList.add("active"); generateSchedule(); }
+  if(id==="auditTab") { tabAuditBtn.classList.add("active"); renderAuditLog(); }
+  if(id==="settingsTab") { tabSettingsBtn.classList.add("active"); loadSettings(); }
 }
 
 /* EMPLOYEES */
 function addEmployee(){
   if(!empName.value) return;
-  employees.push({
+  const newEmp = {
     id: crypto.randomUUID(),
     name: empName.value,
     type: empType.value,
-    seniority:+empSeniority.value || employees.length + 1,
+    seniority:+empSeniority.value || employees.filter(e=>!e.retired).length + 1,
     pref: empPref.value,
     vacation:false,
     sick:false,
     retired:false
-  });
+  };
+  employees.push(newEmp);
   empName.value = "";
   empSeniority.value = "";
   rebalanceSeniority();
+  
+  addAuditEntry('Employee Added', newEmp.id, null, null, `${newEmp.name} (${newEmp.type}, Seniority ${newEmp.seniority})`);
   save(); renderEmployees(); generateSchedule();
 }
 
@@ -210,8 +392,11 @@ function rebalanceSeniority(){
 
 function retireEmployee(id){
   if(!confirm("Retire this employee?")) return;
-  employees.find(e=>e.id===id).retired=true;
+  const emp = employees.find(e=>e.id===id);
+  emp.retired=true;
   rebalanceSeniority();
+  
+  addAuditEntry('Employee Retired', id, null, 'Active', 'Retired');
   save(); renderEmployees(); generateSchedule();
 }
 
@@ -231,7 +416,6 @@ function renderEmployees(){
       <td>${e.retired ? "—" : '<button class="retire">Retire</button>'}</td>
     `;
     
-    // Add event listeners
     const vacationCheck = row.querySelector('.vacation-check');
     const sickCheck = row.querySelector('.sick-check');
     const retireBtn = row.querySelector('.retire');
@@ -257,12 +441,16 @@ function renderEmployees(){
 }
 
 function toggleVacation(id, checked){
-  employees.find(e=>e.id===id).vacation=checked;
+  const emp = employees.find(e=>e.id===id);
+  emp.vacation=checked;
+  addAuditEntry('Vacation Changed', id, null, !checked, checked);
   save(); generateSchedule();
 }
 
 function toggleSick(id, checked){
-  employees.find(e=>e.id===id).sick=checked;
+  const emp = employees.find(e=>e.id===id);
+  emp.sick=checked;
+  addAuditEntry('Sick Status Changed', id, null, !checked, checked);
   save(); generateSchedule();
 }
 
@@ -270,7 +458,8 @@ function toggleSick(id, checked){
 function autoRecommendStaff(){
   const guests=+eventGuests.value;
   if(!guests) return;
-  const ratio={ "Plated Service":20,"Buffet Service":30,"Reception":40,"Coffee Break":50 }[eventService.value]||30;
+  const serviceType = eventService.value;
+  const ratio = settings.ratios[serviceType] || 30;
   eventStaff.value=Math.ceil(guests/ratio);
 }
 
@@ -286,12 +475,19 @@ function addEvent(){
     service:eventService.value,
     staff:+eventStaff.value || 1
   };
-  if(editingEventId){
-    Object.assign(events.find(e=>e.id===editingEventId),data);
-    editingEventId=null;
-  } else events.push(data);
   
-  // Clear form
+  if(editingEventId){
+    const oldEvent = events.find(e=>e.id===editingEventId);
+    Object.assign(oldEvent, data);
+    addAuditEntry('Event Modified', null, data.date, 
+      `${oldEvent.name} (${oldEvent.staff} staff)`,
+      `${data.name} (${data.staff} staff)`);
+    editingEventId=null;
+  } else {
+    events.push(data);
+    addAuditEntry('Event Created', null, data.date, null, `${data.name} (${data.staff} staff)`);
+  }
+  
   eventName.value="";
   eventDate.value="";
   eventStart.value="";
@@ -338,7 +534,9 @@ function editEvent(id){
 
 function deleteEvent(id){
   if(!confirm("Delete event?")) return;
+  const ev = events.find(e=>e.id===id);
   events=events.filter(e=>e.id!==id);
+  addAuditEntry('Event Deleted', null, ev.date, `${ev.name}`, null);
   save(); renderEvents(); generateSchedule();
 }
 
@@ -367,17 +565,13 @@ function timeStr(d){
   return d.toTimeString().slice(0,5);
 }
 
-function displayHours(h){
-  return Math.round(h * 2) / 2; // Round to nearest 0.5
-}
-
 function getShiftClassByHours(h){
-  if(h === 4) return "shift-4";      // Green
-  if(h === 5) return "shift-5";      // Blue
-  if(h === 6) return "shift-6";      // Orange
-  if(h === 7) return "shift-7";      // Orange
-  if(h === 8) return "shift-8";      // Yellow
-  if(h > 8) return "shift-ot";       // Purple (OT)
+  if(h === 4) return "shift-4";
+  if(h === 5) return "shift-5";
+  if(h === 6) return "shift-6";
+  if(h === 7) return "shift-7";
+  if(h === 8) return "shift-8";
+  if(h > 8) return "shift-ot";
   return "";
 }
 
@@ -388,28 +582,23 @@ function calculateSmartShift(ev, paidHours) {
   let buffer = 1;
   if (ev.guests >= 200) buffer = 2;
 
-  // If shift is over 4 hours, we need to add 0.5 hours for meal break to the scheduled time
   const scheduledHours = paidHours > 4 ? paidHours + 0.5 : paidHours;
 
-  // OPTION A: meal break AFTER event
   let startA = new Date(baseStart);
   startA.setHours(startA.getHours() - buffer);
   let endA = new Date(startA);
   endA.setMinutes(endA.getMinutes() + (scheduledHours * 60));
 
-  // OPTION B: meal break BEFORE event  
   let endB = new Date(baseEnd);
   endB.setHours(endB.getHours() + buffer);
   let startB = new Date(endB);
   startB.setMinutes(startB.getMinutes() - (scheduledHours * 60));
 
-  // Round both to nearest half hour
   startA = roundToHalfHour(new Date(startA));
   endA   = roundToHalfHour(new Date(endA));
   startB = roundToHalfHour(new Date(startB));
   endB   = roundToHalfHour(new Date(endB));
 
-  // Pick the option closer to event window
   const distA = Math.abs(startA - baseStart) + Math.abs(endA - baseEnd);
   const distB = Math.abs(startB - baseStart) + Math.abs(endB - baseEnd);
 
@@ -420,29 +609,102 @@ function calculateSmartShift(ev, paidHours) {
 
 function normalizeHours(start, end){
   const diff=(new Date(`1970-01-01T${end}`)-new Date(`1970-01-01T${start}`))/3600000;
-  if(diff<=4) return {h:4,cls:"shift-4"};
-  if(diff<=5) return {h:5,cls:"shift-5"};
-  if(diff<=6) return {h:6,cls:"shift-6"};
-  if(diff<=7) return {h:7,cls:"shift-7"};
-  if(diff<=8) return {h:8,cls:"shift-8"};
-  return {h:Math.ceil(diff),cls:"shift-ot"};
+  if(diff<=4) return {h:4};
+  if(diff<=5) return {h:5};
+  if(diff<=6) return {h:6};
+  if(diff<=7) return {h:7};
+  if(diff<=8) return {h:8};
+  return {h:Math.ceil(diff)};
+}
+
+/* CONFLICT DETECTION */
+function detectConflicts(empId, date, shiftStart, shiftEnd){
+  const conflicts = [];
+  
+  // Check all shifts for this employee across the week
+  const start = getWeekStart();
+  const days = [...Array(7)].map((_,i)=>{
+    const d=new Date(start);
+    d.setDate(start.getDate()+i);
+    return d;
+  });
+  
+  days.forEach(d => {
+    const dateStr = iso(d);
+    const key = empId + "_" + dateStr;
+    
+    if(dateStr === date) return; // Skip same day
+    
+    // Check if employee has a shift on adjacent days
+    const edit = manualEdits[key];
+    if(edit && edit.start && edit.end) {
+      // Check rest time between shifts
+      const prevDate = new Date(dateStr);
+      const currDate = new Date(date);
+      const dayDiff = (currDate - prevDate) / (1000 * 60 * 60 * 24);
+      
+      if(Math.abs(dayDiff) === 1) {
+        const prevEnd = new Date(`1970-01-01T${edit.end}`);
+        const currStart = new Date(`1970-01-01T${shiftStart}`);
+        
+        let gap;
+        if(dayDiff === 1) {
+          // Current is day after
+          const prevEndMins = prevEnd.getHours() * 60 + prevEnd.getMinutes();
+          const currStartMins = currStart.getHours() * 60 + currStart.getMinutes();
+          gap = (1440 - prevEndMins) + currStartMins;
+        } else {
+          // Current is day before
+          const currEndMins = new Date(`1970-01-01T${shiftEnd}`).getHours() * 60 + new Date(`1970-01-01T${shiftEnd}`).getMinutes();
+          const prevStartMins = new Date(`1970-01-01T${edit.start}`).getHours() * 60 + new Date(`1970-01-01T${edit.start}`).getMinutes();
+          gap = (1440 - currEndMins) + prevStartMins;
+        }
+        
+        if(gap < 480) {
+          conflicts.push(`Less than 8 hours rest from ${dateStr} shift`);
+        }
+      }
+    }
+  });
+  
+  return conflicts;
 }
 
 /* SCHEDULE FUNCTIONS */
+function toggleLock(empId, date){
+  const key = empId + "_" + date;
+  const emp = employees.find(e => e.id === empId);
+  
+  if(lockedCells[key]) {
+    delete lockedCells[key];
+    addAuditEntry('Cell Unlocked', empId, date, 'Locked', 'Unlocked');
+  } else {
+    lockedCells[key] = true;
+    addAuditEntry('Cell Locked', empId, date, 'Unlocked', 'Locked');
+  }
+  
+  save();
+  generateSchedule();
+}
+
 function editScheduleCell(empId, date){
   const key = empId + "_" + date;
   const emp = employees.find(e => e.id === empId);
   const ev = events.find(e => e.date === date);
   
-  // Build the edit dialog
   let currentEdit = manualEdits[key];
   let dialog = `Edit shift for ${emp.name} on ${date}:\n\n`;
   dialog += `Options:\n`;
-  dialog += `1. Set custom hours only (e.g., "5" for 5 hours)\n`;
-  dialog += `2. Set hours + times (e.g., "6,09:00,15:30")\n`;
-  dialog += `3. Mark as SICK (enter "sick")\n`;
-  dialog += `4. Mark as VACATION (enter "vacation")\n`;
-  dialog += `5. Clear shift (leave blank)\n\n`;
+  dialog += `1. Hours only: "5"\n`;
+  dialog += `2. Hours + times: "6,09:00,15:30"\n`;
+  dialog += `3. Mark SICK: "sick"\n`;
+  dialog += `4. Mark VACATION: "vacation"\n`;
+  dialog += `5. Remove shift: "remove"\n`;
+  dialog += `6. Lock/unlock: "lock"\n\n`;
+  
+  if(lockedCells[key]) {
+    dialog += `🔒 LOCKED\n`;
+  }
   
   if(currentEdit) {
     if(currentEdit.status === 'sick') {
@@ -455,54 +717,71 @@ function editScheduleCell(empId, date){
       dialog += `Current: ${currentEdit.hours || currentEdit}h\n`;
     }
   } else if(ev) {
-    dialog += `Auto-generated from event: ${ev.name}\n`;
+    dialog += `Auto from event: ${ev.name}\n`;
   }
   
   const input = prompt(dialog);
   
-  if(input === null) return; // Cancelled
+  if(input === null) return;
   
-  // Clear shift
-  if(input === "") {
+  const trimmed = input.trim().toLowerCase();
+  
+  // Lock/unlock
+  if(trimmed === 'lock') {
+    toggleLock(empId, date);
+    return;
+  }
+  
+  // Remove shift
+  if(trimmed === 'remove' || trimmed === '') {
+    const oldValue = currentEdit ? JSON.stringify(currentEdit) : 'Auto-assigned';
     delete manualEdits[key];
+    addAuditEntry('Shift Removed', empId, date, oldValue, null);
     save(); 
     generateSchedule();
     return;
   }
   
   // Mark as sick
-  if(input.toLowerCase() === 'sick') {
+  if(trimmed === 'sick') {
+    const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
     manualEdits[key] = { status: 'sick' };
+    addAuditEntry('Marked Sick', empId, date, oldValue, 'SICK');
     save();
     generateSchedule();
     return;
   }
   
   // Mark as vacation
-  if(input.toLowerCase() === 'vacation') {
+  if(trimmed === 'vacation') {
+    const oldValue = currentEdit ? JSON.stringify(currentEdit) : null;
     manualEdits[key] = { status: 'vacation' };
+    addAuditEntry('Marked Vacation', empId, date, oldValue, 'VACATION');
     save();
     generateSchedule();
     return;
   }
   
-  // Parse input
+  // Parse hours/times
   const parts = input.split(',').map(p => p.trim());
   
+  let newEdit;
   if(parts.length === 1) {
-    // Just hours
-    manualEdits[key] = { hours: Number(parts[0]) };
+    newEdit = { hours: Number(parts[0]) };
   } else if(parts.length === 3) {
-    // Hours + start + end
-    manualEdits[key] = {
+    newEdit = {
       hours: Number(parts[0]),
       start: parts[1],
       end: parts[2]
     };
   } else {
-    alert('Invalid format. Use: hours OR hours,start,end OR sick OR vacation');
+    alert('Invalid format');
     return;
   }
+  
+  const oldValue = currentEdit ? JSON.stringify(currentEdit) : 'Auto-assigned';
+  manualEdits[key] = newEdit;
+  addAuditEntry('Shift Manually Edited', empId, date, oldValue, JSON.stringify(newEdit));
   
   save(); 
   generateSchedule();
@@ -516,7 +795,8 @@ function clearDay(dateStr){
       delete manualEdits[key];
     }
   });
-
+  
+  addAuditEntry('Day Cleared', null, dateStr, 'All shifts', null);
   save();
   generateSchedule();
 }
@@ -532,7 +812,6 @@ function generateSchedule(){
 
   weekHeader.textContent = `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
 
-  // Create header row
   const headerRow = document.createElement('tr');
   headerRow.innerHTML = '<th>Employee</th>';
   
@@ -551,10 +830,8 @@ function generateSchedule(){
   headerRow.innerHTML += '<th>Total</th>';
   scheduleTable.appendChild(headerRow);
 
-  // Assign employees to events for each day
   const assignments = assignEmployeesToWeek(days);
 
-  // Generate rows for each employee
   employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0;
     const row = document.createElement('tr');
@@ -564,12 +841,15 @@ function generateSchedule(){
       const dateStr = iso(d);
       const key=emp.id+"_"+dateStr;
       const cell = document.createElement('td');
+      cell.className = 'clickable';
+      
+      const isLocked = lockedCells[key];
+      if(isLocked) cell.classList.add('locked-cell');
 
       // Manual edit override
       if(manualEdits[key]){
         const edit = manualEdits[key];
         
-        // Handle sick status
         if(edit.status === 'sick') {
           cell.style.background = '#95a5a6';
           cell.innerHTML = 'SICK';
@@ -578,7 +858,6 @@ function generateSchedule(){
           return;
         }
         
-        // Handle vacation status
         if(edit.status === 'vacation') {
           cell.style.background = '#3498db';
           cell.innerHTML = 'VAC';
@@ -587,12 +866,16 @@ function generateSchedule(){
           return;
         }
         
-        // Handle hour edits (with or without custom times)
         const h = edit.hours || edit;
         total += h;
-        cell.className = getShiftClassByHours(h);
+        cell.className += ' ' + getShiftClassByHours(h);
         
         if(edit.start && edit.end) {
+          const conflicts = detectConflicts(emp.id, dateStr, edit.start, edit.end);
+          if(conflicts.length > 0) {
+            cell.classList.add('conflict-cell');
+            cell.title = 'Conflict: ' + conflicts.join(', ');
+          }
           cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small>`;
         } else {
           cell.innerHTML = `${h}h`;
@@ -603,25 +886,21 @@ function generateSchedule(){
         return;
       }
 
-      // Check if employee is assigned to this event
       const ev=events.find(e=>e.date===dateStr);
       const isAssigned = assignments[dateStr] && assignments[dateStr].includes(emp.id);
       
-      // Empty cell if no event, not assigned, or employee unavailable
       if(!ev || !isAssigned || emp.vacation || emp.sick){
         cell.onclick = () => editScheduleCell(emp.id, dateStr);
         row.appendChild(cell);
         return;
       }
 
-      // Calculate shift - s.h is the PAID hours (displayed)
       const s = normalizeHours(ev.start, ev.end);
-      // t contains start/end times which are SCHEDULED hours (includes meal break)
       const t = calculateSmartShift(ev, s.h);
       
       total += s.h;
 
-      cell.className = getShiftClassByHours(s.h);
+      cell.className += ' ' + getShiftClassByHours(s.h);
       cell.innerHTML = `${s.h}h<br><small>${timeStr(t.start)}–${timeStr(t.end)}</small>`;
       cell.onclick = () => editScheduleCell(emp.id, dateStr);
       row.appendChild(cell);
@@ -636,10 +915,9 @@ function generateSchedule(){
 
 function assignEmployeesToWeek(days) {
   const assignments = {};
-  const employeeShiftHistory = {}; // Track last shift end time for each employee
-  const employeeTotalHours = {}; // Track total hours assigned to each employee
+  const employeeShiftHistory = {};
+  const employeeTotalHours = {};
   
-  // Initialize tracking for all employees
   employees.filter(e => !e.retired).forEach(e => {
     employeeShiftHistory[e.id] = null;
     employeeTotalHours[e.id] = 0;
@@ -651,90 +929,74 @@ function assignEmployeesToWeek(days) {
     
     if(dayEvents.length === 0) return;
     
-    // Sort events by start time (earliest to latest)
     dayEvents.sort((a, b) => a.start.localeCompare(b.start));
     
-    // Get available employees for this day
     const available = employees.filter(e => 
       !e.retired && 
       !e.sick && 
       !e.vacation
-    ).map(e => ({...e, assignedToday: false, skippedEvents: []}));
+    ).map(e => ({...e, assignedToday: false}));
     
-    // For each event, assign employees
     dayEvents.forEach((ev, eventIndex) => {
       const isEarliestShift = eventIndex === 0;
       const isLatestShift = eventIndex === dayEvents.length - 1;
       
-      // Calculate this event's shift times
       const s = normalizeHours(ev.start, ev.end);
       const t = calculateSmartShift(ev, s.h);
       
-      // Score employees for this specific event
       const scored = available
-        .filter(emp => !emp.assignedToday) // Only one shift per day
+        .filter(emp => {
+          const key = emp.id + "_" + dateStr;
+          // Skip if locked or manually edited
+          if(lockedCells[key] || manualEdits[key]) return false;
+          // Skip if already assigned today
+          if(emp.assignedToday) return false;
+          return true;
+        })
         .map(emp => {
           let score = 0;
           let canWork = true;
-          let reason = '';
           
-          // Check 8-hour gap
           const gapCheck = canWorkShift(emp.id, dateStr, t.start, employeeShiftHistory);
           if(!gapCheck.allowed) {
             canWork = false;
-            reason = '8hr-gap';
-            // Track that they were skipped for this event (might work a later one)
-            emp.skippedEvents.push(eventIndex);
           }
           
-          // Seniority is primary (higher seniority = higher score)
-          score += (100 - emp.seniority) * 10;
+          // FT FIRST, then seniority
+          if(emp.type === 'FT') score += 10000;
+          score += (100 - emp.seniority) * 100;
           
-          // IMPORTANT: Boost score if employee has fewer hours than they should
-          // Higher seniority should have more hours, so penalize if they're behind
-          const expectedHours = (100 - emp.seniority) * 0.5; // Rough target
+          const expectedHours = (100 - emp.seniority) * 0.5;
           if(employeeTotalHours[emp.id] < expectedHours) {
-            score += 200; // Strong boost to catch up on hours
+            score += 500;
           }
           
-          // Preference bonus based on shift timing
           if(emp.pref === 'AM' && isEarliestShift) {
-            score += 100; // Strong preference for earliest shift
+            score += 200;
           } else if(emp.pref === 'PM' && isLatestShift) {
-            score += 100; // Strong preference for latest shift
+            score += 200;
           }
           
-          // FT employees get slight priority
-          if(emp.type === 'FT') {
-            score += 20;
-          }
-          
-          return { ...emp, score, canWork, reason };
+          return { ...emp, score, canWork };
         })
-        .filter(emp => emp.canWork); // Only include employees who can work this shift
+        .filter(emp => emp.canWork);
       
-      // Sort by score (highest first)
       scored.sort((a, b) => b.score - a.score);
       
-      // Assign top N employees
       const assigned = scored.slice(0, ev.staff);
       
-      // Mark these employees as assigned for today and update their records
       assigned.forEach(emp => {
         const empRef = available.find(e => e.id === emp.id);
         if(empRef) empRef.assignedToday = true;
         
-        // Update shift history with this shift's end time
         employeeShiftHistory[emp.id] = {
           date: dateStr,
           endTime: t.end
         };
         
-        // Update total hours
         employeeTotalHours[emp.id] += s.h;
       });
       
-      // Store assignments
       if(!assignments[dateStr]) {
         assignments[dateStr] = [];
       }
@@ -749,35 +1011,26 @@ function assignEmployeesToWeek(days) {
   return assignments;
 }
 
-// Check if employee can work this shift (8-hour gap from previous day's shift)
 function canWorkShift(empId, currentDate, shiftStart, shiftHistory) {
   const lastShift = shiftHistory[empId];
   
-  // If no previous shift, can work
   if(!lastShift) return {allowed: true};
   
-  // Check if last shift was yesterday
   const lastDate = new Date(lastShift.date);
   const currentDateObj = new Date(currentDate);
   const daysDiff = Math.floor((currentDateObj - lastDate) / (1000 * 60 * 60 * 24));
   
-  // If last shift was more than 1 day ago, can work
   if(daysDiff > 1) return {allowed: true};
   
-  // If last shift was yesterday, check 8-hour gap
   if(daysDiff === 1) {
-    // Calculate time difference between last shift end and this shift start
     const lastEnd = lastShift.endTime;
     const currentStart = shiftStart;
     
-    // Convert to minutes for comparison
     const lastEndMinutes = lastEnd.getHours() * 60 + lastEnd.getMinutes();
     const currentStartMinutes = currentStart.getHours() * 60 + currentStart.getMinutes();
     
-    // Add 24 hours (1440 minutes) to current start since it's the next day
     const totalMinutesBetween = (1440 - lastEndMinutes) + currentStartMinutes;
     
-    // Require at least 8 hours (480 minutes) between shifts
     if(totalMinutesBetween >= 480) {
       return {allowed: true};
     } else {
@@ -785,12 +1038,14 @@ function canWorkShift(empId, currentDate, shiftStart, shiftHistory) {
     }
   }
   
-  // If last shift was today, already handled by assignedToday flag
   return {allowed: true};
 }
 
 function regenerateSchedule(){ 
+  if(!confirm("This will clear all manual edits. Continue?")) return;
+  
   manualEdits = {};
+  addAuditEntry('Schedule Regenerated', null, null, 'All manual edits', null);
   save();
   generateSchedule(); 
 }
@@ -807,6 +1062,76 @@ function toggleDarkMode(){
 function printSchedule(){ 
   showTab("scheduleTab"); 
   setTimeout(()=>window.print(),200); 
+}
+
+/* AUDIT LOG */
+function renderAuditLog(filter = {}){
+  const container = document.getElementById('auditLogContainer');
+  container.innerHTML = '';
+  
+  let filtered = auditLog;
+  
+  if(filter.employee) {
+    filtered = filtered.filter(e => 
+      e.employee.toLowerCase().includes(filter.employee.toLowerCase())
+    );
+  }
+  
+  if(filter.date) {
+    filtered = filtered.filter(e => e.date === filter.date);
+  }
+  
+  if(filtered.length === 0) {
+    container.innerHTML = '<p>No audit entries found.</p>';
+    return;
+  }
+  
+  filtered.forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'audit-entry';
+    
+    const timestamp = new Date(entry.timestamp).toLocaleString();
+    let html = `<strong>${entry.action}</strong> - ${timestamp}<br>`;
+    
+    if(entry.employee) html += `Employee: ${entry.employee}<br>`;
+    if(entry.date) html += `Date: ${entry.date}<br>`;
+    if(entry.oldValue) html += `Old: ${entry.oldValue}<br>`;
+    if(entry.newValue) html += `New: ${entry.newValue}`;
+    
+    div.innerHTML = html;
+    container.appendChild(div);
+  });
+}
+
+function filterAuditLog(){
+  renderAuditLog({
+    employee: document.getElementById('auditEmployee').value,
+    date: document.getElementById('auditDate').value
+  });
+}
+
+function clearAuditFilter(){
+  document.getElementById('auditEmployee').value = '';
+  document.getElementById('auditDate').value = '';
+  renderAuditLog();
+}
+
+/* SETTINGS */
+function loadSettings(){
+  document.getElementById('ratioPlated').value = settings.ratios["Plated Service"];
+  document.getElementById('ratioBuffet').value = settings.ratios["Buffet Service"];
+  document.getElementById('ratioReception').value = settings.ratios["Reception"];
+  document.getElementById('ratioCoffee').value = settings.ratios["Coffee Break"];
+}
+
+function saveSettings(){
+  settings.ratios["Plated Service"] = +document.getElementById('ratioPlated').value;
+  settings.ratios["Buffet Service"] = +document.getElementById('ratioBuffet').value;
+  settings.ratios["Reception"] = +document.getElementById('ratioReception').value;
+  settings.ratios["Coffee Break"] = +document.getElementById('ratioCoffee').value;
+  
+  save();
+  alert('Settings saved!');
 }
 
 /* INIT */
