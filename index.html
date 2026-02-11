@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BanquetLogic - Employee Scheduler</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
 body {
@@ -113,6 +116,73 @@ th { background:#4e9af1; color:#fff; font-weight: bold; }
 /* CLICKABLE CELLS */
 td[onclick], td.clickable { cursor:pointer; }
 td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
+
+/* AUDIT EXPLANATION */
+.audit-explanation {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2e2e3d;
+  border: 2px solid #4e9af1;
+  border-radius: 6px;
+  padding: 10px;
+  min-width: 250px;
+  max-width: 350px;
+  z-index: 1000;
+  display: none;
+  margin-bottom: 5px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.audit-explanation::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+  border-top-color: #4e9af1;
+}
+
+.audit-explanation-title {
+  font-weight: bold;
+  color: #4e9af1;
+  margin-bottom: 5px;
+  border-bottom: 1px solid #4e9af1;
+  padding-bottom: 5px;
+}
+
+.audit-explanation-item {
+  margin: 5px 0;
+  padding-left: 15px;
+  position: relative;
+}
+
+.audit-explanation-item::before {
+  content: '•';
+  position: absolute;
+  left: 5px;
+  color: #27ae60;
+}
+
+/* Mobile audit explanation */
+@media (max-width: 768px) {
+  .audit-explanation {
+    position: fixed;
+    bottom: 20px;
+    left: 10px;
+    right: 10px;
+    transform: none;
+    max-width: none;
+  }
+  
+  .audit-explanation::after {
+    display: none;
+  }
+}
 
 /* TOOLTIP */
 .tooltip {
@@ -436,6 +506,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   <button id="tabAuditBtn" onclick="showTab('auditTab')">Audit Log</button>
   <button id="tabSettingsBtn" onclick="showTab('settingsTab')">Settings</button>
   <button id="tabSupportBtn" onclick="showTab('supportTab')">Support / Contact</button>
+  <button id="tabDemoBtn" onclick="showTab('demoTab')" style="background:#e67e22;">🎬 Demo Mode</button>
 </div>
 
 <!-- EMPLOYEES -->
@@ -549,6 +620,9 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 <button onclick="generateSchedule()">Generate</button>
 <button onclick="regenerateSchedule()">Regenerate</button>
 <button id="globalLockBtn" onclick="toggleGlobalLock()" style="background:#f39c12;">🔓 Unlock Schedule</button>
+<button onclick="emailSchedulesToAll()" style="background:#27ae60;">📧 Email Schedules</button>
+<button onclick="showGenerationRules()" style="background:#9b59b6;">📋 Generation Rules</button>
+<button onclick="showConflictReport()" id="conflictReportBtn" style="background:#e74c3c; display:none;">⚠️ Conflicts</button>
 
 <div class="schedule-container">
   <table id="scheduleTable"></table>
@@ -574,6 +648,50 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 <!-- SETTINGS -->
 <div id="settingsTab" class="tab">
 <h2>Settings</h2>
+
+<div class="settings-section">
+  <h3>Shift Assignment Style</h3>
+  <p>Choose how shifts are assigned when generating schedules:</p>
+  
+  <div style="margin: 15px 0;">
+    <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
+      <input type="radio" name="assignmentStyle" value="strict" checked style="margin-top: 5px;">
+      <div>
+        <strong style="color: #4e9af1;">Strict Seniority</strong>
+        <p style="margin: 5px 0 0 0; font-size: 13px; color: #95a5a6;">
+          Higher-seniority employees are always assigned first. Seniority 1 gets all available shifts before Seniority 2, and so on. 
+          Preferences are only respected if they don't conflict with seniority priority.
+        </p>
+      </div>
+    </label>
+    
+    <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
+      <input type="radio" name="assignmentStyle" value="balanced" style="margin-top: 5px;">
+      <div>
+        <strong style="color: #4e9af1;">Seniority + Balanced Coverage</strong>
+        <p style="margin: 5px 0 0 0; font-size: 13px; color: #95a5a6;">
+          Seniority is prioritized, but shifts are balanced across employee groups (FT/PT). 
+          Prevents one group from getting all shifts while others are eligible. 
+          Better distribution while still respecting seniority within each group.
+        </p>
+      </div>
+    </label>
+    
+    <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
+      <input type="radio" name="assignmentStyle" value="fair" style="margin-top: 5px;">
+      <div>
+        <strong style="color: #4e9af1;">Fair Distribution</strong>
+        <p style="margin: 5px 0 0 0; font-size: 13px; color: #95a5a6;">
+          Shifts distributed as evenly as possible across all eligible employees. 
+          Everyone gets similar hours regardless of seniority. 
+          Seniority is only used as a tie-breaker when two employees have equal hours.
+        </p>
+      </div>
+    </label>
+  </div>
+  
+  <button onclick="saveSettings()">Save Settings</button>
+</div>
 
 <div class="settings-section">
   <h3>Staffing Ratios</h3>
@@ -667,6 +785,93 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 </div>
 </div>
 
+<!-- DEMO MODE -->
+<div id="demoTab" class="tab">
+<h2>🎬 Demo Mode</h2>
+
+<div style="max-width: 800px; margin: 0 auto;">
+  <div style="padding: 20px; background: #2e2e3d; border-radius: 8px; margin-bottom: 20px;">
+    <h3 style="margin-top: 0; color: #e67e22;">Welcome to BanquetLogic Demo!</h3>
+    <p style="font-size: 16px; line-height: 1.6;">
+      This guided demonstration will walk you through all the features of BanquetLogic, 
+      showing you how to manage employees, create events, generate schedules, and more.
+    </p>
+    
+    <div style="padding: 15px; background: #34495e; border-radius: 6px; margin: 15px 0;">
+      <strong style="color: #f39c12;">⚠️ Important:</strong>
+      <ul style="margin: 10px 0; padding-left: 20px;">
+        <li>Demo will use sample data (your real data is safe)</li>
+        <li>Takes approximately 3-5 minutes</li>
+        <li>You can stop the demo at any time</li>
+        <li>Demo data will be cleared when finished</li>
+      </ul>
+    </div>
+    
+    <div style="text-align: center; margin-top: 25px;">
+      <button onclick="startDemo()" style="background: #27ae60; font-size: 18px; padding: 15px 30px;">
+        ▶️ Start Demo
+      </button>
+      <button id="stopDemoBtn" onclick="stopDemo()" style="background: #e74c3c; font-size: 18px; padding: 15px 30px; display: none;">
+        ⏹️ Stop Demo
+      </button>
+    </div>
+  </div>
+  
+  <div id="demoStatus" style="padding: 15px; background: #1e1e2f; border-radius: 8px; margin-bottom: 20px; display: none;">
+    <h4 style="margin-top: 0; color: #4e9af1;">Demo Progress</h4>
+    <div id="demoStepInfo" style="font-size: 15px; line-height: 1.8;"></div>
+    <div style="margin-top: 10px; background: #2e2e3d; border-radius: 4px; height: 30px; overflow: hidden;">
+      <div id="demoProgress" style="background: #27ae60; height: 100%; width: 0%; transition: width 0.5s;"></div>
+    </div>
+  </div>
+  
+  <div id="demoInstructions" style="padding: 20px; background: #2e2e3d; border-radius: 8px;">
+    <h3 style="margin-top: 0;">What You'll Learn:</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+      <div style="padding: 15px; background: #34495e; border-radius: 6px;">
+        <h4 style="margin: 0 0 10px 0; color: #4e9af1;">👥 Employee Management</h4>
+        <ul style="margin: 5px 0; padding-left: 20px; font-size: 14px;">
+          <li>Add employees with details</li>
+          <li>Set seniority and preferences</li>
+          <li>Configure day preferences</li>
+          <li>Manage vacation days</li>
+        </ul>
+      </div>
+      
+      <div style="padding: 15px; background: #34495e; border-radius: 6px;">
+        <h4 style="margin: 0 0 10px 0; color: #4e9af1;">📅 Event Creation</h4>
+        <ul style="margin: 5px 0; padding-left: 20px; font-size: 14px;">
+          <li>Create banquet events</li>
+          <li>Set dates and times</li>
+          <li>Configure guest counts</li>
+          <li>Auto-calculate staff needs</li>
+        </ul>
+      </div>
+      
+      <div style="padding: 15px; background: #34495e; border-radius: 6px;">
+        <h4 style="margin: 0 0 10px 0; color: #4e9af1;">📊 Smart Scheduling</h4>
+        <ul style="margin: 5px 0; padding-left: 20px; font-size: 14px;">
+          <li>Auto-generate schedules</li>
+          <li>Respect preferences</li>
+          <li>Balance hours fairly</li>
+          <li>Handle conflicts</li>
+        </ul>
+      </div>
+      
+      <div style="padding: 15px; background: #34495e; border-radius: 6px;">
+        <h4 style="margin: 0 0 10px 0; color: #4e9af1;">🔧 Advanced Features</h4>
+        <ul style="margin: 5px 0; padding-left: 20px; font-size: 14px;">
+          <li>Manual shift editing</li>
+          <li>Lock schedules</li>
+          <li>Email to employees</li>
+          <li>Audit logging</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
 let events = JSON.parse(localStorage.getItem("events") || "[]");
@@ -675,7 +880,10 @@ let lockedCells = JSON.parse(localStorage.getItem("lockedCells") || "{}");
 let lockedRows = JSON.parse(localStorage.getItem("lockedRows") || "{}");
 let scheduleGlobalLock = JSON.parse(localStorage.getItem("scheduleGlobalLock") || "false");
 let auditLog = JSON.parse(localStorage.getItem("auditLog") || "[]");
+let assignmentReasons = JSON.parse(localStorage.getItem("assignmentReasons") || "{}"); // NEW: Store why each shift was assigned
+let generationConflicts = []; // NEW: Store conflicts from last generation
 let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
+  assignmentStyle: "strict", // Default: Strict Seniority
   ratios: {
     "Plated Service": 20,
     "Buffet Service": 30,
@@ -709,6 +917,7 @@ function save(){
   localStorage.setItem("lockedRows", JSON.stringify(lockedRows));
   localStorage.setItem("scheduleGlobalLock", JSON.stringify(scheduleGlobalLock));
   localStorage.setItem("auditLog", JSON.stringify(auditLog));
+  localStorage.setItem("assignmentReasons", JSON.stringify(assignmentReasons));
   localStorage.setItem("settings", JSON.stringify(settings));
 }
 
@@ -741,6 +950,7 @@ function showTab(id){
   if(id==="auditTab") { tabAuditBtn.classList.add("active"); renderAuditLog(); }
   if(id==="settingsTab") { tabSettingsBtn.classList.add("active"); loadSettings(); }
   if(id==="supportTab") { tabSupportBtn.classList.add("active"); }
+  if(id==="demoTab") { tabDemoBtn.classList.add("active"); }
 }
 
 function toggleViewMode() {
@@ -761,6 +971,399 @@ function toggleViewMode() {
   }
   
   console.log(`View mode: ${forceDesktopView ? 'Forced Desktop' : 'Auto-Responsive'}`);
+}
+
+function showGenerationRules() {
+  const assignmentStyle = settings.assignmentStyle || 'strict';
+  
+  let rules = '📋 SCHEDULE GENERATION RULES\n';
+  rules += '━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+  rules += `Current Mode: ${assignmentStyle === 'strict' ? 'Strict Seniority' : assignmentStyle === 'balanced' ? 'Seniority + Balanced Coverage' : 'Fair Distribution'}\n\n`;
+  rules += 'RULE EXECUTION ORDER:\n\n';
+  rules += '1️⃣ HARD CONSTRAINTS (Must be met):\n';
+  rules += '   • Employee not retired\n';
+  rules += '   • Employee not sick\n';
+  rules += '   • Employee not on vacation that day\n';
+  rules += '   • Cell not locked\n';
+  rules += '   • Row not locked\n';
+  rules += '   • Employee has not reached max days/week limit\n';
+  rules += '   • 8-hour rest period since last shift\n\n';
+  rules += '2️⃣ SCORING FACTORS (Priority order):\n\n';
+  
+  if(assignmentStyle === 'strict') {
+    rules += '   STRICT SENIORITY MODE:\n';
+    rules += '   • Seniority ranking (DOMINANT - ×10,000)\n';
+    rules += '   • Full-time status (+1,000)\n';
+    rules += '   • AM/PM shift preference (+50)\n';
+    rules += '   • Day of week preference (±50)\n\n';
+  } else if(assignmentStyle === 'balanced') {
+    rules += '   BALANCED COVERAGE MODE:\n';
+    rules += '   • Full-time status (+10,000)\n';
+    rules += '   • Group balance check (FT vs PT)\n';
+    rules += '   • Seniority within group (×100)\n';
+    rules += '   • Hour balance vs expected (+500)\n';
+    rules += '   • AM/PM shift preference (+200)\n';
+    rules += '   • Day of week preference (±150)\n\n';
+  } else {
+    rules += '   FAIR DISTRIBUTION MODE:\n';
+    rules += '   • Current hours worked (DOMINANT - ×1,000)\n';
+    rules += '   • AM/PM shift preference (+200)\n';
+    rules += '   • Day of week preference (±150)\n';
+    rules += '   • Full-time status (+100)\n';
+    rules += '   • Seniority (tie-breaker only - ×10)\n\n';
+  }
+  
+  rules += '3️⃣ ASSIGNMENT PROCESS:\n';
+  rules += '   • Calculate staff needed from event guest count\n';
+  rules += '   • Filter eligible employees (hard constraints)\n';
+  rules += '   • Score each eligible employee\n';
+  rules += '   • Sort by score (highest first)\n';
+  rules += '   • Assign top N employees to shift\n';
+  rules += '   • Record assignment reason for audit\n\n';
+  rules += '4️⃣ CONFLICT HANDLING:\n';
+  rules += '   • If insufficient eligible staff → Partial assignment\n';
+  rules += '   • If no eligible staff → Skip shift, log conflict\n';
+  rules += '   • Conflicts shown in ⚠️ Conflicts report\n\n';
+  rules += 'Click any generated shift to see WHY that employee was assigned.';
+  
+  alert(rules);
+}
+
+function showConflictReport() {
+  if(generationConflicts.length === 0) {
+    alert('No conflicts detected in last generation.\n\nAll shifts were successfully assigned!');
+    return;
+  }
+  
+  let report = '⚠️ SCHEDULE GENERATION CONFLICTS\n';
+  report += '━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+  report += `Found ${generationConflicts.length} conflict(s):\n\n`;
+  
+  generationConflicts.forEach((conflict, index) => {
+    report += `${index + 1}. ${conflict.event} on ${conflict.date}\n`;
+    report += `   Required: ${conflict.required} staff\n`;
+    report += `   Assigned: ${conflict.assigned} staff\n`;
+    report += `   Shortage: ${conflict.shortage} staff\n`;
+    report += `   Reason: ${conflict.reason}\n\n`;
+  });
+  
+  report += 'POSSIBLE SOLUTIONS:\n';
+  report += '• Hire additional staff\n';
+  report += '• Adjust employee max days/week limits\n';
+  report += '• Remove vacation/sick days if not needed\n';
+  report += '• Reduce event staffing requirements\n';
+  report += '• Manually override and assign shifts';
+  
+  alert(report);
+}
+
+function showAssignmentReason(empId, dateStr) {
+  const key = empId + "_" + dateStr;
+  const reason = assignmentReasons[key];
+  
+  if(!reason) {
+    alert('No assignment reason found.\n\nThis shift may have been manually created or from an older generation.');
+    return;
+  }
+  
+  const emp = employees.find(e => e.id === empId);
+  const date = new Date(dateStr);
+  
+  let explanation = `WHY ${emp.name} WAS ASSIGNED\n`;
+  explanation += `${date.toLocaleDateString(undefined, {weekday: 'long', month: 'short', day: 'numeric'})}\n`;
+  explanation += '━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+  explanation += `${reason.join('\n')}`;
+  
+  alert(explanation);
+}
+
+/* SCHEDULE DISPLAY */
+function emailSchedulesToAll() {
+  // Get current week
+  const start = getWeekStart();
+  const days = [...Array(7)].map((_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+  
+  const weekRange = `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
+  
+  // Check for employees without email
+  const activeEmployees = employees.filter(e => !e.retired);
+  const employeesWithoutEmail = [];
+  const employeesWithSchedule = [];
+  
+  activeEmployees.forEach(emp => {
+    // Check if employee has any shifts this week
+    let hasShifts = false;
+    days.forEach(d => {
+      const dateStr = iso(d);
+      const key = emp.id + "_" + dateStr;
+      if(manualEdits[key] && manualEdits[key].status !== 'sick' && manualEdits[key].status !== 'vacation') {
+        hasShifts = true;
+      }
+    });
+    
+    if(hasShifts) {
+      if(!emp.email) {
+        employeesWithoutEmail.push(emp.name);
+      } else {
+        employeesWithSchedule.push(emp);
+      }
+    }
+  });
+  
+  // Show warning if any employees missing email
+  if(employeesWithoutEmail.length > 0) {
+    let warning = '⚠️ WARNING: Cannot send schedules to employees without email addresses!\n\n';
+    warning += 'Missing email for:\n';
+    employeesWithoutEmail.forEach(name => {
+      warning += `• ${name}\n`;
+    });
+    warning += '\nPlease add email addresses in the Employees tab (click ℹ️ button).\n\n';
+    
+    if(employeesWithSchedule.length > 0) {
+      warning += `Continue sending to ${employeesWithSchedule.length} employee(s) with valid emails?`;
+      
+      if(!confirm(warning)) {
+        return;
+      }
+    } else {
+      alert(warning + '\nNo employees have email addresses set. Cannot send any schedules.');
+      return;
+    }
+  }
+  
+  if(employeesWithSchedule.length === 0) {
+    alert('No employees with shifts and valid email addresses for this week.');
+    return;
+  }
+  
+  // Generate individual schedules and open email clients
+  let successCount = 0;
+  
+  employeesWithSchedule.forEach((emp, index) => {
+    setTimeout(() => {
+      const emailContent = generateEmployeeScheduleEmail(emp, days);
+      
+      const subject = encodeURIComponent(`Your BanquetLogic Schedule - Week of ${days[0].toLocaleDateString()}`);
+      const body = encodeURIComponent(emailContent);
+      const mailtoLink = `mailto:${emp.email}?subject=${subject}&body=${body}`;
+      
+      // Open email client
+      window.open(mailtoLink, '_blank');
+      
+      successCount++;
+      
+      // Log in audit
+      addAuditEntry('Schedule Emailed', emp.id, null, null, `Week: ${weekRange}`);
+      
+    }, index * 500); // Delay each email by 500ms to avoid browser blocking
+  });
+  
+  save();
+  
+  // Show confirmation
+  setTimeout(() => {
+    let message = `✅ Opened ${successCount} email client window(s)!\n\n`;
+    message += `Please send each email from your email client.\n\n`;
+    message += `Employees receiving schedules:\n`;
+    employeesWithSchedule.forEach(emp => {
+      message += `• ${emp.name} (${emp.email})\n`;
+    });
+    
+    if(employeesWithoutEmail.length > 0) {
+      message += `\n⚠️ Skipped (no email):\n`;
+      employeesWithoutEmail.forEach(name => {
+        message += `• ${name}\n`;
+      });
+    }
+    
+    alert(message);
+  }, employeesWithSchedule.length * 500 + 200);
+}
+
+function generateEmployeeScheduleEmail(emp, days) {
+  let email = `Hello ${emp.name},\n\n`;
+  email += `Here is your work schedule for the week of ${days[0].toLocaleDateString()}:\n\n`;
+  email += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  
+  let totalHours = 0;
+  let daysWorked = 0;
+  
+  days.forEach(d => {
+    const dateStr = iso(d);
+    const key = emp.id + "_" + dateStr;
+    const dayName = d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    
+    if(manualEdits[key]) {
+      const edit = manualEdits[key];
+      
+      if(edit.status === 'sick') {
+        email += `${dayName}\n`;
+        email += `  Status: SICK DAY\n\n`;
+      } else if(edit.status === 'vacation') {
+        email += `${dayName}\n`;
+        email += `  Status: VACATION\n\n`;
+      } else {
+        const hours = edit.hours || edit;
+        totalHours += hours;
+        daysWorked++;
+        
+        email += `${dayName}\n`;
+        email += `  Hours: ${hours}h\n`;
+        if(edit.start && edit.end) {
+          email += `  Time: ${edit.start} – ${edit.end}\n`;
+        }
+        
+        // Find event for this day
+        const event = events.find(ev => ev.date === dateStr);
+        if(event) {
+          email += `  Event: ${event.name}\n`;
+        }
+        email += '\n';
+      }
+    } else {
+      email += `${dayName}\n`;
+      email += `  OFF\n\n`;
+    }
+  });
+  
+  email += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  email += `SUMMARY:\n`;
+  email += `Total Hours: ${totalHours}h\n`;
+  email += `Days Worked: ${daysWorked}\n\n`;
+  
+  email += `If you have any questions or concerns about your schedule, please contact your manager.\n\n`;
+  email += `Thank you,\nBanquetLogic Scheduling`;
+  
+  return email;
+}} employee(s) with valid emails?`;
+      
+      if(!confirm(warning)) {
+        return;
+      }
+    } else {
+      alert(warning + '\nNo employees have email addresses set. Cannot send any schedules.');
+      return;
+    }
+  }
+  
+  if(employeesWithSchedule.length === 0) {
+    alert('No employees with shifts and valid email addresses for this week.');
+    return;
+  }
+  
+  // Generate PDF of full schedule first
+  alert('📄 Generating full schedule PDF...\n\nThis will download automatically and should be attached to each email for transparency.');
+  
+  generateSchedulePDF(weekRange, () => {
+    // After PDF is generated, proceed with emails
+    let successCount = 0;
+    
+    employeesWithSchedule.forEach((emp, index) => {
+      setTimeout(() => {
+        const emailContent = generateEmployeeScheduleEmail(emp, days);
+        
+        const subject = encodeURIComponent(`Your BanquetLogic Schedule - Week of ${days[0].toLocaleDateString()}`);
+        let body = emailContent + '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+        body += '📎 ATTACHMENT: Please attach the "BanquetLogic_Full_Schedule.pdf" file that was just downloaded.\n';
+        body += 'This shows the complete schedule for all staff for transparency.';
+        body = encodeURIComponent(body);
+        
+        const mailtoLink = `mailto:${emp.email}?subject=${subject}&body=${body}`;
+        
+        // Open email client
+        window.open(mailtoLink, '_blank');
+        
+        successCount++;
+        
+        // Log in audit
+        addAuditEntry('Schedule Emailed', emp.id, null, null, `Week: ${weekRange}`);
+        
+      }, index * 500); // Delay each email by 500ms to avoid browser blocking
+    });
+    
+    save();
+    
+    // Show confirmation
+    setTimeout(() => {
+      let message = `✅ PDF Generated & ${successCount} email window(s) opened!\n\n`;
+      message += `IMPORTANT: Attach "BanquetLogic_Full_Schedule.pdf" to each email before sending.\n\n`;
+      message += `Employees receiving schedules:\n`;
+      employeesWithSchedule.forEach(emp => {
+        message += `• ${emp.name} (${emp.email})\n`;
+      });
+      
+      if(employeesWithoutEmail.length > 0) {
+        message += `\n⚠️ Skipped (no email):\n`;
+        employeesWithoutEmail.forEach(name => {
+          message += `• ${name}\n`;
+        });
+      }
+      
+      alert(message);
+    }, employeesWithSchedule.length * 500 + 200);
+  });
+}
+
+
+function generateEmployeeScheduleEmail(emp, days) {
+  let email = `Hello ${emp.name},\n\n`;
+  email += `Here is your work schedule for the week of ${days[0].toLocaleDateString()}:\n\n`;
+  email += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  
+  let totalHours = 0;
+  let daysWorked = 0;
+  
+  days.forEach(d => {
+    const dateStr = iso(d);
+    const key = emp.id + "_" + dateStr;
+    const dayName = d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    
+    if(manualEdits[key]) {
+      const edit = manualEdits[key];
+      
+      if(edit.status === 'sick') {
+        email += `${dayName}\n`;
+        email += `  Status: SICK DAY\n\n`;
+      } else if(edit.status === 'vacation') {
+        email += `${dayName}\n`;
+        email += `  Status: VACATION\n\n`;
+      } else {
+        const hours = edit.hours || edit;
+        totalHours += hours;
+        daysWorked++;
+        
+        email += `${dayName}\n`;
+        email += `  Hours: ${hours}h\n`;
+        if(edit.start && edit.end) {
+          email += `  Time: ${edit.start} – ${edit.end}\n`;
+        }
+        
+        // Find event for this day
+        const event = events.find(ev => ev.date === dateStr);
+        if(event) {
+          email += `  Event: ${event.name}\n`;
+        }
+        email += '\n';
+      }
+    } else {
+      email += `${dayName}\n`;
+      email += `  OFF\n\n`;
+    }
+  });
+  
+  email += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  email += `SUMMARY:\n`;
+  email += `Total Hours: ${totalHours}h\n`;
+  email += `Days Worked: ${daysWorked}\n\n`;
+  
+  email += `If you have any questions or concerns about your schedule, please contact your manager.\n\n`;
+  email += `Thank you,\nBanquetLogic Scheduling`;
+  
+  return email;
 }
 
 /* EMPLOYEES */
@@ -1880,15 +2483,34 @@ function generateSchedule(){
   console.log(`Shifts skipped due to 5-day limit: ${skippedDueToLimit}`);
   console.log(`Understaffed events: ${understaffedEvents.length}`);
   
+  // NEW: Store conflicts for conflict report
+  generationConflicts = understaffedEvents.map(evt => ({
+    event: evt.name,
+    date: new Date(evt.date).toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'}),
+    required: evt.required,
+    assigned: evt.assigned,
+    shortage: evt.shortage,
+    reason: 'Insufficient eligible employees after applying all constraints'
+  }));
+  
+  // NEW: Show/hide conflict report button
+  const conflictBtn = document.getElementById('conflictReportBtn');
+  if(generationConflicts.length > 0) {
+    conflictBtn.style.display = 'inline-block';
+    conflictBtn.textContent = `⚠️ Conflicts (${generationConflicts.length})`;
+  } else {
+    conflictBtn.style.display = 'none';
+  }
+  
   // Build alert message
   let message = '';
   if(shiftsCreated === 0) {
-    message = `No shifts were created. Make sure you have:\n1. Events in the current week\n2. Available employees (not retired/sick/vacation)\n3. Unlocked cells\n4. Employees haven't reached 5-day work limit`;
+    message = `No shifts were created. Make sure you have:\n1. Events in the current week\n2. Available employees (not retired/sick/vacation)\n3. Unlocked cells\n4. Employees haven't reached max days limit`;
   } else {
     message = `✅ Created ${shiftsCreated} shifts!`;
     
     if(skippedDueToLimit > 0) {
-      message += `\n\n⚠️ ${skippedDueToLimit} potential shifts skipped (5-day limit)`;
+      message += `\n\n⚠️ ${skippedDueToLimit} potential shifts skipped (max days limit)`;
     }
     
     if(understaffedEvents.length > 0) {
@@ -1898,8 +2520,10 @@ function generateSchedule(){
         const dateDisplay = dateObj.toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'});
         message += `\n• ${evt.name} (${dateDisplay})\n  Needs ${evt.shortage} more staff (${evt.assigned}/${evt.required})`;
       });
-      message += `\n\nYou may need to:\n- Manually assign more employees\n- Hire additional staff\n- Reduce event requirements`;
+      message += `\n\nClick "⚠️ Conflicts" button for detailed conflict report.\n\nYou may need to:\n- Manually assign more employees\n- Hire additional staff\n- Reduce event requirements`;
     }
+    
+    message += `\n\n💡 TIP: Click any generated shift to see WHY that employee was assigned.\nHover (desktop) or tap (mobile) on shifts with ℹ️ icon.`;
   }
   alert(message);
   
@@ -2003,6 +2627,9 @@ function displaySchedule(){
         daysWorked++; // Count this as a worked day
         cell.className += ' ' + getShiftClassByHours(h);
         
+        // NEW: Make cell position relative for audit tooltip
+        cell.style.position = 'relative';
+        
         if(edit.start && edit.end) {
           const conflicts = detectConflicts(emp.id, dateStr, edit.start, edit.end);
           if(conflicts.length > 0) {
@@ -2014,7 +2641,53 @@ function displaySchedule(){
           cell.innerHTML = `${h}h`;
         }
         
-        cell.onclick = () => editScheduleCell(emp.id, dateStr);
+        // NEW: Add audit explanation if available
+        const hasAuditReason = assignmentReasons[key];
+        if(hasAuditReason) {
+          // Add indicator that audit info is available
+          const infoIcon = document.createElement('span');
+          infoIcon.innerHTML = ' ℹ️';
+          infoIcon.style.fontSize = '10px';
+          infoIcon.style.opacity = '0.7';
+          cell.appendChild(infoIcon);
+          
+          // Create audit tooltip (hidden by default)
+          const auditDiv = document.createElement('div');
+          auditDiv.className = 'audit-explanation';
+          auditDiv.innerHTML = `
+            <div class="audit-explanation-title">Why ${emp.name} was assigned:</div>
+            ${assignmentReasons[key].map(reason => 
+              reason === '' ? '<br>' : `<div class="audit-explanation-item">${reason}</div>`
+            ).join('')}
+          `;
+          cell.appendChild(auditDiv);
+          
+          // Desktop: Show on hover
+          cell.onmouseenter = function() {
+            auditDiv.style.display = 'block';
+          };
+          cell.onmouseleave = function() {
+            auditDiv.style.display = 'none';
+          };
+          
+          // Desktop & Mobile: Toggle on click (before edit dialog)
+          const originalOnclick = cell.onclick;
+          cell.onclick = function(e) {
+            if(auditDiv.style.display === 'block') {
+              auditDiv.style.display = 'none';
+              // Then open edit dialog
+              originalOnclick();
+            } else {
+              // First click: show audit
+              auditDiv.style.display = 'block';
+              e.stopPropagation();
+            }
+          };
+        } else {
+          // No audit reason - just edit
+          cell.onclick = () => editScheduleCell(emp.id, dateStr);
+        }
+        
         row.appendChild(cell);
         return;
       }
@@ -2126,6 +2799,61 @@ function displaySchedule(){
           if(conflicts.length > 0) {
             shiftInfo.innerHTML = '⚠️ ' + shiftInfo.innerHTML;
             shiftInfo.title = 'Conflict: ' + conflicts.join(', ');
+          }
+          
+          // NEW: Add audit explanation for mobile
+          const hasAuditReason = assignmentReasons[key];
+          if(hasAuditReason) {
+            shiftInfo.innerHTML += ' <span style="font-size:10px; opacity:0.8;">ℹ️</span>';
+            
+            // Create hidden audit explanation div
+            const auditDiv = document.createElement('div');
+            auditDiv.style.display = 'none';
+            auditDiv.style.marginTop = '10px';
+            auditDiv.style.padding = '10px';
+            auditDiv.style.background = '#2e2e3d';
+            auditDiv.style.border = '2px solid #4e9af1';
+            auditDiv.style.borderRadius = '6px';
+            auditDiv.style.fontSize = '12px';
+            auditDiv.style.lineHeight = '1.4';
+            
+            auditDiv.innerHTML = `
+              <div style="font-weight: bold; color: #4e9af1; margin-bottom: 8px; border-bottom: 1px solid #4e9af1; padding-bottom: 5px;">
+                Why ${emp.name} was assigned:
+              </div>
+              ${assignmentReasons[key].map(reason => 
+                reason === '' ? '<div style="height:5px;"></div>' : 
+                `<div style="margin: 3px 0; padding-left: 15px; position: relative;">
+                  <span style="position: absolute; left: 5px; color: #27ae60;">•</span>
+                  ${reason}
+                </div>`
+              ).join('')}
+              <div style="margin-top: 10px; text-align: center;">
+                <button onclick="this.parentElement.parentElement.style.display='none'" style="background: #e74c3c; color: #fff; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer;">
+                  Close
+                </button>
+              </div>
+            `;
+            
+            dayCard.appendChild(auditDiv);
+            
+            // Override click to show/hide audit first, then edit
+            shiftInfo.onclick = (function(empId, date, auditElement) {
+              let auditShown = false;
+              return function(e) {
+                if(!auditShown) {
+                  // First tap: show audit
+                  auditElement.style.display = 'block';
+                  auditShown = true;
+                  e.stopPropagation();
+                } else {
+                  // Second tap: hide audit and open edit
+                  auditElement.style.display = 'none';
+                  auditShown = false;
+                  editScheduleCell(empId, date);
+                }
+              };
+            })(currentEmpId, dateStr, auditDiv);
           }
         }
       } else {
@@ -2241,32 +2969,86 @@ function assignEmployeesToWeek(days) {
             canWork = false;
           }
           
-          // FT FIRST, then seniority
-          if(emp.type === 'FT') score += 10000;
-          score += (100 - emp.seniority) * 100;
+          // Apply scoring based on selected assignment style
+          const assignmentStyle = settings.assignmentStyle || 'strict';
           
-          const expectedHours = (100 - emp.seniority) * 0.5;
-          if(employeeTotalHours[emp.id] < expectedHours) {
-            score += 500;
-          }
-          
-          if(emp.pref === 'AM' && isEarliestShift) {
-            score += 200;
-          } else if(emp.pref === 'PM' && isLatestShift) {
-            score += 200;
-          }
-          
-          // NEW: Day of week preference bonus
-          const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, etc.
-          if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] !== undefined) {
-            if(emp.dayPreferences[dayOfWeek] === true) {
-              // Employee PREFERS to work this day - give bonus
+          if(assignmentStyle === 'strict') {
+            // STRICT SENIORITY: Seniority is dominant factor
+            score += (100 - emp.seniority) * 10000; // Seniority is the main driver
+            if(emp.type === 'FT') score += 1000; // FT bonus, but less than seniority difference
+            
+            // Preferences are secondary
+            if(emp.pref === 'AM' && isEarliestShift) score += 50;
+            else if(emp.pref === 'PM' && isLatestShift) score += 50;
+            
+            const dayOfWeek = d.getDay();
+            if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
+              score += 50;
+            } else if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) {
+              score -= 50;
+            }
+            
+          } else if(assignmentStyle === 'balanced') {
+            // SENIORITY + BALANCED COVERAGE: Balance FT/PT while respecting seniority
+            if(emp.type === 'FT') score += 10000; // FT priority
+            score += (100 - emp.seniority) * 100; // Seniority within groups
+            
+            // Balance by checking group hours
+            const ftHours = Object.keys(employeeTotalHours)
+              .filter(id => employees.find(e => e.id === id && e.type === 'FT'))
+              .reduce((sum, id) => sum + (employeeTotalHours[id] || 0), 0);
+            
+            const ptHours = Object.keys(employeeTotalHours)
+              .filter(id => employees.find(e => e.id === id && e.type === 'PT'))
+              .reduce((sum, id) => sum + (employeeTotalHours[id] || 0), 0);
+            
+            // If one group has significantly more hours, boost the other group
+            if(emp.type === 'FT' && ftHours > ptHours + 20) {
+              score -= 2000; // Reduce FT priority if they're ahead
+            } else if(emp.type === 'PT' && ptHours > ftHours + 20) {
+              score -= 2000; // Reduce PT priority if they're ahead
+            }
+            
+            // Hour balance within employee
+            const expectedHours = (100 - emp.seniority) * 0.5;
+            if(employeeTotalHours[emp.id] < expectedHours) {
+              score += 500;
+            }
+            
+            // Preferences
+            if(emp.pref === 'AM' && isEarliestShift) score += 200;
+            else if(emp.pref === 'PM' && isLatestShift) score += 200;
+            
+            const dayOfWeek = d.getDay();
+            if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
               score += 150;
-            } else if(emp.dayPreferences[dayOfWeek] === false) {
-              // Employee PREFERS OFF this day - give penalty (but still assignable)
+            } else if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) {
               score -= 150;
             }
-            // null = no preference, no score change
+            
+          } else if(assignmentStyle === 'fair') {
+            // FAIR DISTRIBUTION: Hours are primary, seniority is tie-breaker
+            const currentHours = employeeTotalHours[emp.id] || 0;
+            
+            // Heavily prioritize employees with fewer hours
+            score += (100 - currentHours) * 1000;
+            
+            // Seniority is only a minor tie-breaker
+            score += (100 - emp.seniority) * 10;
+            
+            // FT/PT doesn't matter much, just slight preference for FT
+            if(emp.type === 'FT') score += 100;
+            
+            // Preferences still matter
+            if(emp.pref === 'AM' && isEarliestShift) score += 200;
+            else if(emp.pref === 'PM' && isLatestShift) score += 200;
+            
+            const dayOfWeek = d.getDay();
+            if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
+              score += 150;
+            } else if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === false) {
+              score -= 150;
+            }
           }
           
           return { ...emp, score, canWork };
@@ -2277,7 +3059,10 @@ function assignEmployeesToWeek(days) {
       
       const assigned = scored.slice(0, ev.staff);
       
-      assigned.forEach(emp => {
+      // NEW: Track assignment reasons for audit
+      const assignmentStyle = settings.assignmentStyle || 'strict';
+      
+      assigned.forEach((emp, assignIndex) => {
         const empRef = available.find(e => e.id === emp.id);
         if(empRef) empRef.assignedToday = true;
         
@@ -2290,6 +3075,62 @@ function assignEmployeesToWeek(days) {
         
         // NEW: Increment work day counter for this employee
         employeeWorkDays[emp.id] += 1;
+        
+        // NEW: Record WHY this employee was assigned
+        const key = emp.id + "_" + dateStr;
+        const reasons = [];
+        
+        reasons.push(`📊 Event: ${ev.name}`);
+        reasons.push(`👥 Required Staff: ${ev.staff} servers`);
+        reasons.push(`🎯 Assigned as #${assignIndex + 1} of ${assigned.length}`);
+        reasons.push(`📈 Final Score: ${emp.score} points`);
+        reasons.push('');
+        reasons.push('SCORING BREAKDOWN:');
+        
+        if(assignmentStyle === 'strict') {
+          const seniorityScore = (100 - emp.seniority) * 10000;
+          reasons.push(`✓ Seniority ${emp.seniority} = ${seniorityScore} pts (DOMINANT)`);
+          if(emp.type === 'FT') reasons.push(`✓ Full-time status = +1,000 pts`);
+          if(emp.pref === 'AM' && isEarliestShift) reasons.push(`✓ Prefers AM shifts = +50 pts`);
+          if(emp.pref === 'PM' && isLatestShift) reasons.push(`✓ Prefers PM shifts = +50 pts`);
+          const dayOfWeek = d.getDay();
+          if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
+            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek];
+            reasons.push(`✓ Prefers ${dayName} = +50 pts`);
+          }
+        } else if(assignmentStyle === 'balanced') {
+          if(emp.type === 'FT') reasons.push(`✓ Full-time status = +10,000 pts`);
+          const seniorityScore = (100 - emp.seniority) * 100;
+          reasons.push(`✓ Seniority ${emp.seniority} = +${seniorityScore} pts`);
+          if(emp.pref === 'AM' && isEarliestShift) reasons.push(`✓ Prefers AM shifts = +200 pts`);
+          if(emp.pref === 'PM' && isLatestShift) reasons.push(`✓ Prefers PM shifts = +200 pts`);
+          const dayOfWeek = d.getDay();
+          if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
+            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek];
+            reasons.push(`✓ Prefers ${dayName} = +150 pts`);
+          }
+        } else if(assignmentStyle === 'fair') {
+          const currentHours = employeeTotalHours[emp.id] - s.h; // Before this shift
+          const hourScore = (100 - currentHours) * 1000;
+          reasons.push(`✓ Had ${currentHours}h (low hours) = +${hourScore} pts (DOMINANT)`);
+          if(emp.pref === 'AM' && isEarliestShift) reasons.push(`✓ Prefers AM shifts = +200 pts`);
+          if(emp.pref === 'PM' && isLatestShift) reasons.push(`✓ Prefers PM shifts = +200 pts`);
+          const dayOfWeek = d.getDay();
+          if(emp.dayPreferences && emp.dayPreferences[dayOfWeek] === true) {
+            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayOfWeek];
+            reasons.push(`✓ Prefers ${dayName} = +150 pts`);
+          }
+          const seniorityScore = (100 - emp.seniority) * 10;
+          reasons.push(`✓ Seniority ${emp.seniority} (tie-breaker) = +${seniorityScore} pts`);
+        }
+        
+        reasons.push('');
+        reasons.push('CONSTRAINTS MET:');
+        reasons.push(`✓ Available (not sick/vacation)`);
+        reasons.push(`✓ Within max ${emp.maxDaysPerWeek || 5} days/week`);
+        reasons.push(`✓ 8-hour rest period maintained`);
+        
+        assignmentReasons[key] = reasons;
       });
       
       if(!assignments[dateStr]) {
@@ -2416,6 +3257,14 @@ function clearAuditFilter(){
 
 /* SETTINGS */
 function loadSettings(){
+  // Load assignment style
+  const assignmentStyle = settings.assignmentStyle || 'strict';
+  const radioButtons = document.querySelectorAll('input[name="assignmentStyle"]');
+  radioButtons.forEach(radio => {
+    radio.checked = radio.value === assignmentStyle;
+  });
+  
+  // Load ratios
   document.getElementById('ratioPlated').value = settings.ratios["Plated Service"];
   document.getElementById('ratioBuffet').value = settings.ratios["Buffet Service"];
   document.getElementById('ratioReception').value = settings.ratios["Reception"];
@@ -2423,6 +3272,13 @@ function loadSettings(){
 }
 
 function saveSettings(){
+  // Save assignment style
+  const selectedStyle = document.querySelector('input[name="assignmentStyle"]:checked');
+  if(selectedStyle) {
+    settings.assignmentStyle = selectedStyle.value;
+  }
+  
+  // Save ratios
   settings.ratios["Plated Service"] = +document.getElementById('ratioPlated').value;
   settings.ratios["Buffet Service"] = +document.getElementById('ratioBuffet').value;
   settings.ratios["Reception"] = +document.getElementById('ratioReception').value;
@@ -2482,6 +3338,245 @@ function submitSupport(){
   // Log in audit
   addAuditEntry('Support Request', null, null, null, `${category}: ${subject}`);
   save();
+}
+
+/* DEMO MODE */
+let demoInProgress = false;
+let demoTimer = null;
+let demoBackupData = {};
+
+function startDemo() {
+  if(!confirm('Start the BanquetLogic demo?\n\nThis will temporarily replace your data with sample data. Your real data will be restored when the demo ends.')) {
+    return;
+  }
+  
+  // Backup current data
+  demoBackupData = {
+    employees: JSON.parse(JSON.stringify(employees)),
+    events: JSON.parse(JSON.stringify(events)),
+    manualEdits: JSON.parse(JSON.stringify(manualEdits)),
+    lockedCells: JSON.parse(JSON.stringify(lockedCells)),
+    lockedRows: JSON.parse(JSON.stringify(lockedRows)),
+    scheduleGlobalLock: scheduleGlobalLock,
+    currentWeekOffset: currentWeekOffset
+  };
+  
+  demoInProgress = true;
+  document.getElementById('stopDemoBtn').style.display = 'inline-block';
+  document.getElementById('demoStatus').style.display = 'block';
+  document.getElementById('demoInstructions').style.display = 'none';
+  
+  // Run demo steps
+  runDemoSequence();
+}
+
+function stopDemo() {
+  if(!confirm('Stop the demo and restore your real data?')) {
+    return;
+  }
+  
+  clearTimeout(demoTimer);
+  
+  // Restore original data
+  employees = demoBackupData.employees;
+  events = demoBackupData.events;
+  manualEdits = demoBackupData.manualEdits;
+  lockedCells = demoBackupData.lockedCells;
+  lockedRows = demoBackupData.lockedRows;
+  scheduleGlobalLock = demoBackupData.scheduleGlobalLock;
+  currentWeekOffset = demoBackupData.currentWeekOffset;
+  
+  save();
+  renderEmployees();
+  renderEvents();
+  displaySchedule();
+  
+  demoInProgress = false;
+  document.getElementById('stopDemoBtn').style.display = 'none';
+  document.getElementById('demoStatus').style.display = 'none';
+  document.getElementById('demoInstructions').style.display = 'block';
+  
+  alert('Demo stopped. Your original data has been restored.');
+}
+
+function updateDemoStatus(step, total, message) {
+  const progress = (step / total) * 100;
+  document.getElementById('demoProgress').style.width = progress + '%';
+  document.getElementById('demoStepInfo').innerHTML = `<strong>Step ${step}/${total}:</strong> ${message}`;
+}
+
+function runDemoSequence() {
+  const steps = [
+    { delay: 0, action: () => demoStep1_ClearData() },
+    { delay: 2000, action: () => demoStep2_AddEmployees() },
+    { delay: 3000, action: () => demoStep3_ShowEmployees() },
+    { delay: 3000, action: () => demoStep4_SetPreferences() },
+    { delay: 3000, action: () => demoStep5_AddEvents() },
+    { delay: 3000, action: () => demoStep6_ShowEvents() },
+    { delay: 3000, action: () => demoStep7_GenerateSchedule() },
+    { delay: 3000, action: () => demoStep8_ShowSchedule() },
+    { delay: 3000, action: () => demoStep9_ManualEdit() },
+    { delay: 3000, action: () => demoStep10_ShowFeatures() },
+    { delay: 4000, action: () => demoStep11_Complete() }
+  ];
+  
+  let currentStep = 0;
+  
+  function runNextStep() {
+    if(!demoInProgress || currentStep >= steps.length) return;
+    
+    const step = steps[currentStep];
+    step.action();
+    currentStep++;
+    
+    if(currentStep < steps.length) {
+      demoTimer = setTimeout(runNextStep, steps[currentStep].delay);
+    }
+  }
+  
+  runNextStep();
+}
+
+function demoStep1_ClearData() {
+  updateDemoStatus(1, 11, 'Clearing existing data and preparing demo environment...');
+  employees = [];
+  events = [];
+  manualEdits = {};
+  lockedCells = {};
+  lockedRows = {};
+  currentWeekOffset = 0;
+}
+
+function demoStep2_AddEmployees() {
+  updateDemoStatus(2, 11, 'Adding sample employees with different seniority levels...');
+  
+  const sampleEmployees = [
+    { name: 'Alice Johnson', type: 'FT', seniority: 1, pref: 'AM', email: 'alice@example.com', maxDaysPerWeek: 5 },
+    { name: 'Bob Smith', type: 'FT', seniority: 2, pref: 'PM', email: 'bob@example.com', maxDaysPerWeek: 5 },
+    { name: 'Carol Davis', type: 'FT', seniority: 3, pref: '', email: 'carol@example.com', maxDaysPerWeek: 4 },
+    { name: 'David Lee', type: 'PT', seniority: 4, pref: 'AM', email: 'david@example.com', maxDaysPerWeek: 3 },
+    { name: 'Emma Wilson', type: 'PT', seniority: 5, pref: 'PM', email: 'emma@example.com', maxDaysPerWeek: 5 }
+  ];
+  
+  sampleEmployees.forEach(emp => {
+    employees.push({
+      id: crypto.randomUUID(),
+      ...emp,
+      sick: false,
+      retired: false,
+      dayPreferences: { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null }
+    });
+  });
+}
+
+function demoStep3_ShowEmployees() {
+  updateDemoStatus(3, 11, 'Displaying employee roster with FT/PT status and seniority...');
+  showTab('employeesTab');
+  renderEmployees();
+}
+
+function demoStep4_SetPreferences() {
+  updateDemoStatus(4, 11, 'Configuring employee preferences (weekday/weekend availability)...');
+  // Set Alice to prefer weekdays
+  if(employees[0]) {
+    employees[0].dayPreferences = { 0: false, 1: true, 2: true, 3: true, 4: true, 5: true, 6: false };
+  }
+}
+
+function demoStep5_AddEvents() {
+  updateDemoStatus(5, 11, 'Creating sample banquet events for this week...');
+  
+  const today = new Date();
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - today.getDay());
+  
+  const sampleEvents = [
+    { day: 2, name: 'Corporate Lunch', start: '11:00', end: '14:30', guests: 80, serviceType: 'Plated Service' },
+    { day: 4, name: 'Wedding Reception', start: '17:00', end: '23:00', guests: 150, serviceType: 'Plated Service' },
+    { day: 6, name: 'Birthday Party', start: '18:00', end: '22:00', guests: 60, serviceType: 'Buffet Service' }
+  ];
+  
+  sampleEvents.forEach(evt => {
+    const eventDate = new Date(weekStart);
+    eventDate.setDate(weekStart.getDate() + evt.day);
+    
+    const staffNeeded = Math.ceil(evt.guests / settings.ratios[evt.serviceType]);
+    
+    events.push({
+      id: crypto.randomUUID(),
+      name: evt.name,
+      date: iso(eventDate),
+      start: evt.start,
+      end: evt.end,
+      guests: evt.guests,
+      serviceType: evt.serviceType,
+      staff: staffNeeded
+    });
+  });
+}
+
+function demoStep6_ShowEvents() {
+  updateDemoStatus(6, 11, 'Showing event calendar with staff requirements...');
+  showTab('eventsTab');
+  renderEvents();
+}
+
+function demoStep7_GenerateSchedule() {
+  updateDemoStatus(7, 11, 'Auto-generating schedule using smart algorithm...');
+  const start = getWeekStart();
+  const days = [...Array(7)].map((_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+  
+  const assignments = assignEmployeesToWeek(days);
+  
+  days.forEach(d => {
+    const dateStr = iso(d);
+    const ev = events.find(e => e.date === dateStr);
+    if(!ev || !assignments[dateStr]) return;
+    
+    assignments[dateStr].forEach(empId => {
+      const key = empId + "_" + dateStr;
+      const s = normalizeHours(ev.start, ev.end);
+      const t = calculateSmartShift(ev, s.h);
+      
+      manualEdits[key] = {
+        hours: s.h,
+        start: timeStr(t.start),
+        end: timeStr(t.end),
+        generated: true
+      };
+    });
+  });
+}
+
+function demoStep8_ShowSchedule() {
+  updateDemoStatus(8, 11, 'Displaying color-coded schedule with shift assignments...');
+  showTab('scheduleTab');
+  displaySchedule();
+}
+
+function demoStep9_ManualEdit() {
+  updateDemoStatus(9, 11, 'Demonstrating manual editing and locking features...');
+  // Lock one employee's row
+  if(employees[0]) {
+    lockedRows[employees[0].id] = true;
+  }
+  displaySchedule();
+}
+
+function demoStep10_ShowFeatures() {
+  updateDemoStatus(10, 11, 'Reviewing advanced features: Audit Log, Settings, Email...');
+  showTab('auditTab');
+  renderAuditLog();
+}
+
+function demoStep11_Complete() {
+  updateDemoStatus(11, 11, '✅ Demo complete! Click "Stop Demo" to restore your data.');
+  
+  alert('🎉 Demo Complete!\n\nYou\'ve seen:\n• Employee management\n• Event creation\n• Smart scheduling\n• Manual editing\n• Locking features\n• Audit logging\n\nClick "Stop Demo" to restore your original data.');
 }
 
 /* INIT */
