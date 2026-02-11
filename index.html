@@ -282,15 +282,22 @@ function addEvent(){
 function renderEvents(){
   eventsTable.innerHTML="";
   events.forEach(ev=>{
-    eventsTable.innerHTML+=`
-    <tr>
-      <td>${ev.name}</td><td>${ev.date}</td>
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${ev.name}</td>
+      <td>${ev.date}</td>
       <td>${ev.start}–${ev.end}</td>
-      <td>${ev.guests}</td><td>${ev.service}</td>
+      <td>${ev.guests}</td>
+      <td>${ev.service}</td>
       <td>${ev.staff}</td>
-      <td><button onclick="editEvent('${ev.id}')">Edit</button></td>
-      <td><button class="delete" onclick="deleteEvent('${ev.id}')">X</button></td>
-    </tr>`;
+      <td><button class="edit-btn">Edit</button></td>
+      <td><button class="delete">Delete</button></td>
+    `;
+    
+    row.querySelector('.edit-btn').onclick = () => editEvent(ev.id);
+    row.querySelector('.delete').onclick = () => deleteEvent(ev.id);
+    
+    eventsTable.appendChild(row);
   });
 }
 
@@ -432,33 +439,43 @@ function generateSchedule(){
 
   weekHeader.textContent = `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
 
-  // Create header with clear buttons
-  scheduleTable.innerHTML = "<tr><th>Employee</th>" +
-    days.map(d=>{
-      const ds = iso(d);
-      return `<th>
-        ${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}
-        <br>
-        <button class="delete" style="margin-top:4px; font-size:10px;" onclick="clearDay('${ds}')">🗑</button>
-      </th>`;
-    }).join("") +
-    "<th>Total</th></tr>";
+  // Create header row
+  const headerRow = document.createElement('tr');
+  headerRow.innerHTML = '<th>Employee</th>';
+  
+  days.forEach(d=>{
+    const th = document.createElement('th');
+    const ds = iso(d);
+    th.innerHTML = `
+      ${d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}
+      <br>
+      <button class="delete clear-day-btn" style="margin-top:4px; font-size:10px;">🗑</button>
+    `;
+    th.querySelector('.clear-day-btn').onclick = () => clearDay(ds);
+    headerRow.appendChild(th);
+  });
+  
+  headerRow.innerHTML += '<th>Total</th>';
+  scheduleTable.appendChild(headerRow);
 
   // Generate rows for each employee
   employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0;
-    let row=`<tr><td>${emp.name}</td>`;
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${emp.name}</td>`;
 
     days.forEach(d=>{
       const key=emp.id+"_"+iso(d);
+      const cell = document.createElement('td');
 
       // Manual edit override
       if(manualEdits[key]){
         const h = manualEdits[key];
         total += h;
-        row+=`<td class="${getShiftClassByHours(h)}" onclick="editScheduleCell('${emp.id}','${iso(d)}')">
-              ${h}h
-              </td>`;
+        cell.className = getShiftClassByHours(h);
+        cell.innerHTML = `${h}h`;
+        cell.onclick = () => editScheduleCell(emp.id, iso(d));
+        row.appendChild(cell);
         return;
       }
 
@@ -467,7 +484,8 @@ function generateSchedule(){
       
       // Empty cell if no event or employee unavailable
       if(!ev || emp.vacation || emp.sick){
-        row+=`<td onclick="editScheduleCell('${emp.id}','${iso(d)}')"></td>`;
+        cell.onclick = () => editScheduleCell(emp.id, iso(d));
+        row.appendChild(cell);
         return;
       }
 
@@ -478,14 +496,16 @@ function generateSchedule(){
       
       total += s.h;
 
-      row+=`<td class="${getShiftClassByHours(s.h)}" onclick="editScheduleCell('${emp.id}','${iso(d)}')">
-            ${s.h}h<br>
-            <small>${timeStr(t.start)}–${timeStr(t.end)}</small>
-            </td>`;
+      cell.className = getShiftClassByHours(s.h);
+      cell.innerHTML = `${s.h}h<br><small>${timeStr(t.start)}–${timeStr(t.end)}</small>`;
+      cell.onclick = () => editScheduleCell(emp.id, iso(d));
+      row.appendChild(cell);
     });
 
-    row+=`<td><strong>${total}h</strong></td></tr>`;
-    scheduleTable.innerHTML+=row;
+    const totalCell = document.createElement('td');
+    totalCell.innerHTML = `<strong>${total}h</strong>`;
+    row.appendChild(totalCell);
+    scheduleTable.appendChild(row);
   });
 }
 
