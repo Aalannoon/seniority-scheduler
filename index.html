@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Seniority Scheduler Dashboard</title>
+<title>BanquetLogic - Employee Scheduler</title>
 
 <style>
 body {
@@ -411,7 +411,10 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 
 <body>
 
-<h1 id="weekHeader"></h1>
+<h1 style="display: flex; align-items: center; gap: 10px;">
+  <span style="color: #4e9af1;">BanquetLogic</span>
+  <span style="font-size: 18px; color: #95a5a6;" id="weekHeader"></span>
+</h1>
 
 <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
 <button class="print" onclick="printSchedule()">Print / Save PDF</button>
@@ -559,7 +562,7 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 
 <div class="settings-section">
   <h3>Report a Bug or Suggest a Feature</h3>
-  <p>Have feedback about the scheduler? Found a bug? Have a feature request? Let us know!</p>
+  <p>Have feedback about BanquetLogic? Found a bug? Have a feature request? Let us know!</p>
   
   <div style="margin-top: 20px;">
     <div style="margin-bottom: 15px;">
@@ -1348,14 +1351,18 @@ function displaySchedule(){
     let total=0;
     let daysWorked=0;
     const row = document.createElement('tr');
+    const currentEmpId = emp.id; // Capture ID explicitly
     
     // Add row lock toggle
     const lockCell = document.createElement('td');
-    const isRowLocked = lockedRows[emp.id];
+    const isRowLocked = lockedRows[currentEmpId];
     lockCell.innerHTML = isRowLocked ? '🔒' : '🔓';
     lockCell.style.cursor = 'pointer';
     lockCell.style.fontSize = '18px';
-    lockCell.onclick = () => toggleRowLock(emp.id);
+    lockCell.setAttribute('data-employee-id', currentEmpId);
+    lockCell.onclick = (function(empId) {
+      return function() { toggleRowLock(empId); };
+    })(currentEmpId);
     lockCell.title = isRowLocked ? 'Click to unlock this row' : 'Click to lock this row';
     row.appendChild(lockCell);
     
@@ -1447,12 +1454,13 @@ function displaySchedule(){
   employees.filter(e=>!e.retired).forEach(emp=>{
     let totalHours = 0;
     let totalDays = 0;
+    const currentEmpId = emp.id; // Capture ID explicitly
     
     const empCard = document.createElement('div');
     empCard.className = 'mobile-employee-card';
     
     const empHeader = document.createElement('h3');
-    const isRowLocked = lockedRows[emp.id];
+    const isRowLocked = lockedRows[currentEmpId];
     
     const empNameSpan = document.createElement('span');
     empNameSpan.textContent = emp.name;
@@ -1462,7 +1470,9 @@ function displaySchedule(){
     lockSpan.style.fontSize = '20px';
     lockSpan.textContent = isRowLocked ? '🔒' : '🔓';
     lockSpan.title = isRowLocked ? 'Unlock row' : 'Lock row';
-    lockSpan.onclick = () => toggleRowLock(emp.id);
+    lockSpan.onclick = (function(empId) {
+      return function() { toggleRowLock(empId); };
+    })(currentEmpId);
     
     empHeader.appendChild(empNameSpan);
     empHeader.appendChild(lockSpan);
@@ -1470,7 +1480,7 @@ function displaySchedule(){
     
     days.forEach(d => {
       const dateStr = iso(d);
-      const key = emp.id + "_" + dateStr;
+      const key = currentEmpId + "_" + dateStr;
       
       const dayCard = document.createElement('div');
       dayCard.className = 'mobile-day-card';
@@ -1482,7 +1492,9 @@ function displaySchedule(){
       
       const shiftInfo = document.createElement('div');
       shiftInfo.className = 'mobile-shift-info';
-      shiftInfo.onclick = () => editScheduleCell(emp.id, dateStr);
+      shiftInfo.onclick = (function(empId, date) {
+        return function() { editScheduleCell(empId, date); };
+      })(currentEmpId, dateStr);
       
       const isLocked = lockedCells[key];
       
@@ -1513,7 +1525,7 @@ function displaySchedule(){
             shiftInfo.innerHTML += `<br><small>${edit.start} – ${edit.end}</small>`;
           }
           
-          const conflicts = detectConflicts(emp.id, dateStr, edit.start, edit.end);
+          const conflicts = detectConflicts(currentEmpId, dateStr, edit.start, edit.end);
           if(conflicts.length > 0) {
             shiftInfo.innerHTML = '⚠️ ' + shiftInfo.innerHTML;
             shiftInfo.title = 'Conflict: ' + conflicts.join(', ');
@@ -1826,8 +1838,8 @@ function submitSupport(){
   }
   
   // Build email content
-  const emailSubject = `[Scheduler ${category}] ${subject}`;
-  const emailBody = `Category: ${category}\n\n${message}\n\n---\nSent from Seniority Scheduler Dashboard`;
+  const emailSubject = `[BanquetLogic ${category}] ${subject}`;
+  const emailBody = `Category: ${category}\n\n${message}\n\n---\nSent from BanquetLogic Scheduler`;
   
   // Create mailto link
   const mailtoLink = `mailto:Alialannoon@gmail.com?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
