@@ -1141,6 +1141,8 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   <button type="button" onclick="addEventPoolReqRow()" style="margin-top: 6px;">Add pool requirement</button>
 </div>
 
+<p style="margin-top: 12px;"><label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"><input type="checkbox" id="eventCashBar" /> Cash Bar</label><br><small class="event-type-helper">When enabled, the schedule will show a non-binding cashier recommendation for this event.</small></p>
+
 <input id="eventStaff" type="number" placeholder="Staff Needed (legacy)" style="margin-top: 8px;" />
 <button type="button" id="eventSubmitBtn" onclick="addEvent()">Add Event</button>
 
@@ -1237,6 +1239,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
     </label>
   </div>
   
+  <p style="margin-top: 16px;"><label>Cash bar recommendation: 1 cashier per <input type="number" id="settingsCashierRatio" min="1" value="150" style="width: 70px; padding: 6px;" /> guests</label><br><small class="event-type-helper">Used only to show a non-binding recommendation when an event has Cash Bar enabled.</small></p>
   <button type="button" onclick="saveSettings()">Save Settings</button>
 </div>
 
@@ -1567,7 +1570,8 @@ let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
     "Buffet Service": 30,
     "Reception": 40,
     "Coffee Break": 50
-  }
+  },
+  cashierRecommendationRatio: 150 // 1 cashier per N guests for recommendation only
 }));
 
 function getDefaultEventTypes() {
@@ -1584,9 +1588,11 @@ if (!eventTypes || eventTypes.length === 0) {
 function getActiveEventTypes() { return eventTypes.filter(function(t) { return t.active; }); }
 
 var DEFAULT_SERVERS_POOL_ID = 'default-servers';
+var DEFAULT_CASHIERS_POOL_ID = 'default-cashiers';
 function getDefaultLaborPools() {
   return [
-    { id: DEFAULT_SERVERS_POOL_ID, name: 'Servers', defaultHourlyWage: 0, canBeScheduled: true, appearsInEvents: true }
+    { id: DEFAULT_SERVERS_POOL_ID, name: 'Servers', defaultHourlyWage: 0, canBeScheduled: true, appearsInEvents: true },
+    { id: DEFAULT_CASHIERS_POOL_ID, name: 'Cashiers', defaultHourlyWage: 0, canBeScheduled: true, appearsInEvents: true }
   ];
 }
 var laborPools = JSON.parse(localStorage.getItem("laborPools") || "null");
@@ -1594,7 +1600,41 @@ if (!laborPools || laborPools.length === 0) {
   laborPools = getDefaultLaborPools();
   localStorage.setItem("laborPools", JSON.stringify(laborPools));
 }
+// Ensure Cashier pool exists for existing installs
+var cashierPool = laborPools.find(function(p) { return p.id === DEFAULT_CASHIERS_POOL_ID || (p.name && p.name.toLowerCase() === 'cashiers'); });
+if (!cashierPool) {
+  laborPools.push({ id: DEFAULT_CASHIERS_POOL_ID, name: 'Cashiers', defaultHourlyWage: 0, canBeScheduled: true, appearsInEvents: true });
+  localStorage.setItem("laborPools", JSON.stringify(laborPools));
+}
 function getLaborPoolById(id) { return laborPools.find(function(p) { return p.id === id; }); }
+function getCashierPoolId() {
+  var p = laborPools.find(function(x) { return x.id === DEFAULT_CASHIERS_POOL_ID || (x.name && x.name.toLowerCase() === 'cashiers'); });
+  return p ? p.id : null;
+}
+function getCashierRecommendationForDate(dateStr) {
+  var cashierPoolId = getCashierPoolId();
+  if (!cashierPoolId) return { count: 0, names: [] };
+  var dayEvents = events.filter(function(e) { return e.date === dateStr && e.cashBarEnabled; });
+  var ratio = (settings.cashierRecommendationRatio != null && settings.cashierRecommendationRatio >= 1) ? settings.cashierRecommendationRatio : 150;
+  var totalRecommended = 0;
+  dayEvents.forEach(function(ev) {
+    var guests = (ev.guests != null && !isNaN(ev.guests)) ? +ev.guests : 0;
+    if (guests > 0) totalRecommended += Math.ceil(guests / ratio);
+  });
+  if (totalRecommended <= 0) return { count: 0, names: [] };
+  var cashiers = employees.filter(function(e) {
+    return !e.retired && e.laborPoolId === cashierPoolId;
+  });
+  cashiers.sort(function(a, b) {
+    var sa = getSeniorityForEmployee(a);
+    var sb = getSeniorityForEmployee(b);
+    sa = sa != null ? sa : 999;
+    sb = sb != null ? sb : 999;
+    return sa - sb;
+  });
+  var names = cashiers.slice(0, totalRecommended).map(function(e) { return e.name; });
+  return { count: totalRecommended, names: names };
+}
 ensureEmployeeDefaults(employees);
 function getSchedulableLaborPools() { return laborPools.filter(function(p) { return p.canBeScheduled; }); }
 function getEventLaborPools() { return laborPools.filter(function(p) { return p.appearsInEvents; }); }
@@ -1625,7 +1665,7 @@ let currentWeekOffset = 0;
     generationConflicts = [];
     editingEventId = null;
     currentWeekOffset = 0;
-    settings = { assignmentStyle: 'strict', ratios: { 'Plated Service': 20, 'Buffet Service': 30, 'Reception': 40, 'Coffee Break': 50 } };
+    settings = { assignmentStyle: 'strict', ratios: { 'Plated Service': 20, 'Buffet Service': 30, 'Reception': 40, 'Coffee Break': 50 }, cashierRecommendationRatio: 150 };
     eventTypes = getDefaultEventTypes();
     laborPools = getDefaultLaborPools();
     localStorage.setItem('eventTypes', JSON.stringify(eventTypes));
@@ -3295,6 +3335,7 @@ function addEvent(){
   var typeName = type ? type.name : (eventService.options[eventService.selectedIndex] ? eventService.options[eventService.selectedIndex].text : '');
   var poolReqs = getEventLaborPoolReqsFromForm();
   var totalStaff = poolReqs.length ? poolReqs.reduce(function(s, r) { return s + r.quantity; }, 0) : (+eventStaff.value || 1);
+  var eventCashBarEl = document.getElementById('eventCashBar');
   const data={
     id: editingEventId || crypto.randomUUID(),
     name: eventName.value,
@@ -3306,7 +3347,8 @@ function addEvent(){
     eventTypeId: typeId || undefined,
     eventTypeName: typeName,
     staff: totalStaff,
-    laborPoolRequirements: poolReqs
+    laborPoolRequirements: poolReqs,
+    cashBarEnabled: !!(eventCashBarEl && eventCashBarEl.checked)
   };
   
   if(editingEventId){
@@ -3327,6 +3369,7 @@ function addEvent(){
   eventEnd.value="";
   eventGuests.value="";
   eventStaff.value="";
+  if (eventCashBarEl) eventCashBarEl.checked = false;
   var container = document.getElementById('eventLaborPoolReqsContainer');
   if (container) container.innerHTML = '';
   
@@ -3397,6 +3440,8 @@ function editEvent(id){
   }
   eventService.value = typeId || (eventService.options.length ? eventService.options[0].value : '');
   eventStaff.value = e.staff;
+  var eventCashBarEl = document.getElementById('eventCashBar');
+  if (eventCashBarEl) eventCashBarEl.checked = !!e.cashBarEnabled;
   var container = document.getElementById('eventLaborPoolReqsContainer');
   if (container) {
     container.innerHTML = '';
@@ -3642,6 +3687,27 @@ function checkSeniorityViolation(empIdReceiving, dateStr) {
   return { violated: true, names: higherRankNoShift.map(function(e) { return e.name; }) };
 }
 
+function checkCashierSeniorityOverride(empId, dateStr) {
+  var cashierPoolId = getCashierPoolId();
+  if (!cashierPoolId) return { shouldWarn: false };
+  var emp = employees.find(function(e) { return e.id === empId; });
+  if (!emp || emp.retired || emp.laborPoolId !== cashierPoolId) return { shouldWarn: false };
+  var cashiers = employees.filter(function(e) { return !e.retired && e.laborPoolId === cashierPoolId; });
+  var empSeniority = getSeniorityForEmployee(emp);
+  empSeniority = empSeniority != null ? empSeniority : 999;
+  for (var i = 0; i < cashiers.length; i++) {
+    if (cashiers[i].id === empId) continue;
+    var k = cashiers[i].id + '_' + dateStr;
+    var ed = manualEdits[k];
+    if (ed && isFullAbsenceStatus(ed.status)) continue;
+    if (ed && !isFullAbsenceStatus(ed.status) && (ed.hours || ed.start || ed.end)) continue;
+    var otherSeniority = getSeniorityForEmployee(cashiers[i]);
+    otherSeniority = otherSeniority != null ? otherSeniority : 999;
+    if (otherSeniority < empSeniority) return { shouldWarn: true };
+  }
+  return { shouldWarn: false };
+}
+
 function promptOverrideReason() {
   var msg = 'Reason for override (required):\n\n';
   OVERRIDE_REASONS.forEach(function(r, i) { msg += (i + 1) + ' = ' + r + '\n'; });
@@ -3862,9 +3928,15 @@ function editScheduleCell(empId, date){
           return;
         }
       }
+      var cashierOverride = checkCashierSeniorityOverride(toEmp.id, date);
+      if (cashierOverride.shouldWarn && !confirm('This assignment skips a higher-seniority cashier. Do you want to continue?')) return;
       var shiftCopy = JSON.parse(JSON.stringify(currentEdit));
       shiftCopy.manualOverride = true;
       if (overrideReason) applyOverrideToEdit(shiftCopy, overrideReason);
+      if (cashierOverride.shouldWarn) {
+        shiftCopy.cashierSeniorityOverride = true;
+        addAuditEntry('Cashier Assignment', toEmp.id, date, null, 'Seniority override approved');
+      }
       delete manualEdits[key];
       manualEdits[keyTo] = shiftCopy;
       delete assignmentReasonTags[key]; delete assignmentReasons[key];
@@ -3912,7 +3984,14 @@ function editScheduleCell(empId, date){
     return;
   }
   
+  var cashierOverride = getCashierPoolId() && emp.laborPoolId === getCashierPoolId() ? checkCashierSeniorityOverride(empId, date) : { shouldWarn: false };
+  if (cashierOverride.shouldWarn && !confirm('This assignment skips a higher-seniority cashier. Do you want to continue?')) return;
+  
   const oldValue = currentEdit ? JSON.stringify(currentEdit) : 'Auto-assigned';
+  if (cashierOverride.shouldWarn) {
+    newEdit.cashierSeniorityOverride = true;
+    addAuditEntry('Cashier Assignment', empId, date, null, 'Seniority override approved');
+  }
   manualEdits[key] = newEdit;
   delete assignmentReasonTags[key];
   delete assignmentReasons[key];
@@ -4111,6 +4190,40 @@ function displaySchedule(){
   headerRow.innerHTML += '<th>Total<br><small class="schedule-th-helper">Total scheduled hours</small></th><th>Days<br><small class="schedule-th-helper">Days worked this week</small></th>';
   scheduleTable.appendChild(headerRow);
 
+  var recRow = document.createElement('tr');
+  recRow.className = 'schedule-cashier-rec-row';
+  var empty1 = document.createElement('td');
+  var empty2 = document.createElement('td');
+  empty1.style.border = 'none';
+  empty1.style.background = 'transparent';
+  empty2.style.border = 'none';
+  empty2.style.background = 'transparent';
+  recRow.appendChild(empty1);
+  recRow.appendChild(empty2);
+  days.forEach(function(d) {
+    var dateStr = iso(d);
+    var rec = getCashierRecommendationForDate(dateStr);
+    var td = document.createElement('td');
+    td.style.fontSize = '12px';
+    td.style.color = 'var(--brand-text-muted, #7f8c8d)';
+    td.style.verticalAlign = 'top';
+    if (rec.count > 0) {
+      var text = rec.count + ' cashier' + (rec.count !== 1 ? 's' : '') + ' recommended';
+      if (rec.names.length > 0) text += ': ' + rec.names.join(', ');
+      td.textContent = text;
+    }
+    recRow.appendChild(td);
+  });
+  var empty3 = document.createElement('td');
+  var empty4 = document.createElement('td');
+  empty3.style.border = 'none';
+  empty3.style.background = 'transparent';
+  empty4.style.border = 'none';
+  empty4.style.background = 'transparent';
+  recRow.appendChild(empty3);
+  recRow.appendChild(empty4);
+  scheduleTable.appendChild(recRow);
+
   employees.filter(e=>!e.retired).forEach(emp=>{
     let total=0;
     let daysWorked=0;
@@ -4303,14 +4416,14 @@ function assignEmployeesToWeek(days) {
     
     dayEvents.sort((a, b) => a.start.localeCompare(b.start));
     
-    // Filter available employees (not retired, not sick, not on vacation this specific day)
+    var cashierPoolId = getCashierPoolId();
+    // Filter available employees (not retired, not sick, not on vacation; exclude Cashier pool from auto-assign)
     const available = employees.filter(e => {
       if(e.retired || e.sick) return false;
-      
+      if (cashierPoolId && e.laborPoolId === cashierPoolId) return false;
       const vacationKey = e.id + "_" + dateStr;
       var ed = manualEdits[vacationKey];
       if (ed && isFullAbsenceStatus(ed.status)) return false;
-      
       return true;
     }).map(e => ({...e, assignedToday: false}));
     
@@ -4320,6 +4433,9 @@ function assignEmployeesToWeek(days) {
       
       const s = normalizeHours(ev.start, ev.end);
       const t = calculateSmartShift(ev, s.h);
+      var cashierReq = (ev.laborPoolRequirements || []).find(function(r) { return r.laborPoolId === cashierPoolId; });
+      var serverSlots = ev.staff - (cashierReq ? (cashierReq.quantity || 0) : 0);
+      if (serverSlots <= 0) return;
       
       const scored = available
         .filter(emp => {
@@ -4440,7 +4556,7 @@ function assignEmployeesToWeek(days) {
       
       scored.sort((a, b) => b.score - a.score);
       
-      const assigned = scored.slice(0, ev.staff);
+      const assigned = scored.slice(0, serverSlots);
       
       // NEW: Track assignment reasons for audit
       const assignmentStyle = settings.assignmentStyle || 'strict';
@@ -4706,6 +4822,8 @@ function loadSettings(){
   radioButtons.forEach(radio => {
     radio.checked = radio.value === assignmentStyle;
   });
+  var ratioEl = document.getElementById('settingsCashierRatio');
+  if (ratioEl) ratioEl.value = (settings.cashierRecommendationRatio != null ? settings.cashierRecommendationRatio : 150);
   renderLaborPoolsTable();
   renderEventTypesTable();
 }
@@ -4907,6 +5025,11 @@ function saveSettings(){
   const selectedStyle = document.querySelector('input[name="assignmentStyle"]:checked');
   if(selectedStyle) {
     settings.assignmentStyle = selectedStyle.value;
+  }
+  var ratioEl = document.getElementById('settingsCashierRatio');
+  if (ratioEl) {
+    var n = parseInt(ratioEl.value, 10);
+    settings.cashierRecommendationRatio = (!isNaN(n) && n >= 1) ? n : 150;
   }
   save();
   alert('Settings saved!');
