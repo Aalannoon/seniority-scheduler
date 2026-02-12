@@ -116,6 +116,8 @@ th { background:#4e9af1; color:#fff; font-weight: bold; }
 /* CLICKABLE CELLS */
 td[onclick], td.clickable { cursor:pointer; }
 td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
+.schedule-why-link { font-size: 11px; color: #95a5a6; text-decoration: none; }
+.schedule-why-link:hover { color: #4e9af1; text-decoration: underline; }
 
 /* TOOLTIP */
 .tooltip {
@@ -174,10 +176,11 @@ td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
   #scheduleTable th:first-child,
   #scheduleTable td:first-child { display: none !important; }
   #scheduleTable th br { display: none !important; }
-  /* Hide demo UI and other interactive elements in print */
+  /* Hide demo UI and explanation link in print */
   .demo-mode-banner,
   .demo-tip,
-  .demo-tip-visible { display: none !important; }
+  .demo-tip-visible,
+  .schedule-why-link { display: none !important; }
 }
 
 /* TABS */
@@ -772,8 +775,21 @@ let lockedCells = JSON.parse(localStorage.getItem("lockedCells") || "{}");
 let lockedRows = JSON.parse(localStorage.getItem("lockedRows") || "{}");
 let scheduleGlobalLock = JSON.parse(localStorage.getItem("scheduleGlobalLock") || "false");
 let auditLog = JSON.parse(localStorage.getItem("auditLog") || "[]");
-let assignmentReasons = JSON.parse(localStorage.getItem("assignmentReasons") || "{}"); // NEW: Store why each shift was assigned
-let generationConflicts = []; // NEW: Store conflicts from last generation
+let assignmentReasons = JSON.parse(localStorage.getItem("assignmentReasons") || "{}"); // Store why each shift was assigned
+let assignmentReasonTags = JSON.parse(localStorage.getItem("assignmentReasonTags") || "{}"); // Abstract tags for human-readable explanations
+let generationConflicts = [];
+
+var REASON_TAG_EXPLANATIONS = {
+  seniority: 'seniority',
+  availability: 'availability',
+  no_conflicts: 'no scheduling conflicts this week',
+  within_max_days: 'within allowed days per week',
+  full_time: 'full-time status',
+  prefers_shift: 'shift preference matched',
+  day_preference: 'day preference matched',
+  rotation_balance: 'balanced hours under policy',
+  manual_lock: 'manually assigned or locked'
+}; // NEW: Store conflicts from last generation
 let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
   assignmentStyle: "strict", // Default: Strict Seniority
   ratios: {
@@ -809,6 +825,7 @@ function save(){
   localStorage.setItem("scheduleGlobalLock", JSON.stringify(scheduleGlobalLock));
   localStorage.setItem("auditLog", JSON.stringify(auditLog));
   localStorage.setItem("assignmentReasons", JSON.stringify(assignmentReasons));
+  localStorage.setItem("assignmentReasonTags", JSON.stringify(assignmentReasonTags));
   localStorage.setItem("settings", JSON.stringify(settings));
 }
 
@@ -929,24 +946,32 @@ function showConflictReport() {
   alert(report);
 }
 
+function getAssignmentExplanation(empId, dateStr) {
+  const key = empId + "_" + dateStr;
+  const tags = assignmentReasonTags[key];
+  if (tags && tags.length) {
+    var parts = tags.map(function(t) { return REASON_TAG_EXPLANATIONS[t] || t; }).filter(Boolean);
+    if (parts.length) {
+      var tail = parts.length > 1 ? parts.slice(-1)[0] : '';
+      var rest = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + tail : tail;
+      return 'Selected due to ' + rest + '.';
+    }
+  }
+  if (lockedCells[key]) return 'Manually assigned or locked.';
+  return null;
+}
+
 function showAssignmentReason(empId, dateStr) {
   const key = empId + "_" + dateStr;
-  const reason = assignmentReasons[key];
-  
-  if(!reason) {
-    alert('No assignment reason found.\n\nThis shift may have been manually created or from an older generation.');
-    return;
-  }
-  
   const emp = employees.find(e => e.id === empId);
   const date = new Date(dateStr);
-  
-  let explanation = `WHY ${emp.name} WAS ASSIGNED\n`;
-  explanation += `${date.toLocaleDateString(undefined, {weekday: 'long', month: 'short', day: 'numeric'})}\n`;
-  explanation += '━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
-  explanation += `${reason.join('\n')}`;
-  
-  alert(explanation);
+  const explanation = getAssignmentExplanation(empId, dateStr);
+  const title = emp ? (emp.name + ' – ' + date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })) : 'Shift';
+  if (explanation) {
+    alert(title + '\n\n' + explanation);
+  } else {
+    alert(title + '\n\nManually assigned or from an earlier schedule. No policy explanation is stored for this shift.');
+  }
 }
 
 /* EMAIL SCHEDULES */
@@ -2383,13 +2408,15 @@ function displaySchedule(){
             cell.classList.add('conflict-cell');
             cell.title = 'Conflict: ' + conflicts.join(', ');
           }
-          cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small>`;
+          cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small><br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
         } else {
-          cell.innerHTML = `${h}h`;
+          cell.innerHTML = `${h}h<br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
         }
-        
-        // Simple click to edit
-        cell.onclick = () => editScheduleCell(emp.id, dateStr);
+        var whyLink = cell.querySelector('.schedule-why-link');
+        if (whyLink) {
+          whyLink.onclick = function(e) { e.preventDefault(); e.stopPropagation(); showAssignmentReason(emp.id, dateStr); };
+        }
+        cell.onclick = function(ev) { if (!ev.target.closest('.schedule-why-link')) editScheduleCell(emp.id, dateStr); };
         
         row.appendChild(cell);
         return;
@@ -2670,6 +2697,12 @@ function assignEmployeesToWeek(days) {
         reasons.push(`✓ 8-hour rest period maintained`);
         
         assignmentReasons[key] = reasons;
+        var tags = ['availability', 'no_conflicts', 'within_max_days', 'seniority'];
+        if (emp.type === 'FT') tags.push('full_time');
+        if ((emp.pref === 'AM' && isEarliestShift) || (emp.pref === 'PM' && isLatestShift)) tags.push('prefers_shift');
+        if (emp.dayPreferences && emp.dayPreferences[d.getDay()] === true) tags.push('day_preference');
+        if (assignmentStyle === 'balanced' || assignmentStyle === 'fair') tags.push('rotation_balance');
+        assignmentReasonTags[key] = tags;
       });
       
       if(!assignments[dateStr]) {
@@ -2949,7 +2982,8 @@ function startDemo() {
     scheduleGlobalLock: scheduleGlobalLock,
     currentWeekOffset: currentWeekOffset,
     auditLog: JSON.parse(JSON.stringify(auditLog)),
-    assignmentReasons: JSON.parse(JSON.stringify(assignmentReasons))
+    assignmentReasons: JSON.parse(JSON.stringify(assignmentReasons)),
+    assignmentReasonTags: JSON.parse(JSON.stringify(assignmentReasonTags))
   };
   
   demoInProgress = true;
@@ -2977,6 +3011,7 @@ function performDemoCleanup(skipConfirm) {
     currentWeekOffset = demoBackupData.currentWeekOffset;
     auditLog = demoBackupData.auditLog != null ? demoBackupData.auditLog : auditLog;
     assignmentReasons = demoBackupData.assignmentReasons != null ? demoBackupData.assignmentReasons : assignmentReasons;
+    assignmentReasonTags = demoBackupData.assignmentReasonTags != null ? demoBackupData.assignmentReasonTags : assignmentReasonTags;
     generationConflicts = [];
     const conflictBtn = document.getElementById('conflictReportBtn');
     if (conflictBtn) { conflictBtn.style.display = 'none'; conflictBtn.textContent = '⚠️ Conflicts'; }
