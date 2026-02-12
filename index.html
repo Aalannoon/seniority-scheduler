@@ -923,6 +923,17 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   </div>
 </div>
 
+<div class="settings-section" id="dataManagementSection">
+  <h3>Data Management</h3>
+  <p>Back up your data to a file or restore from a previous backup. Export includes employees, events, schedules, event types, and settings.</p>
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 12px;">
+    <button type="button" onclick="exportData()">Export Data</button>
+    <button type="button" onclick="document.getElementById('importDataFile').click()">Import Data</button>
+    <input type="file" id="importDataFile" accept=".json,application/json" style="display: none;" onchange="handleImportFile(event)" />
+  </div>
+  <p style="font-size: 12px; color: var(--brand-text-muted); margin-top: 10px;">Import replaces everything currently in the app with the backup. Use Export first if you want to keep your current data.</p>
+</div>
+
 <div class="settings-section" style="border: 1px solid #e74c3c; background: #2a1f1f;">
   <h3 style="color: #e74c3c;">Admin: Clear All Data</h3>
   <p>Reset the app to a completely fresh state. Use this to remove all employees, events, schedules (all weeks), audit log, and demo data.</p>
@@ -1096,6 +1107,7 @@ let auditLog = JSON.parse(localStorage.getItem("auditLog") || "[]");
 let assignmentReasons = JSON.parse(localStorage.getItem("assignmentReasons") || "{}"); // Store why each shift was assigned (plain-language only)
 let assignmentReasonTags = JSON.parse(localStorage.getItem("assignmentReasonTags") || "{}"); // Abstract tags for human-readable explanations
 let generationConflicts = [];
+var APP_VERSION = '1.0';
 
 var REASON_TAG_EXPLANATIONS = {
   manual_lock: 'This shift was manually assigned or locked.',
@@ -1209,6 +1221,116 @@ function save(){
   localStorage.setItem("assignmentReasonTags", JSON.stringify(assignmentReasonTags));
   localStorage.setItem("settings", JSON.stringify(settings));
   localStorage.setItem("eventTypes", JSON.stringify(eventTypes));
+}
+
+/* DATA EXPORT / IMPORT (centralized for future cloud sync) */
+function getDataForExport() {
+  return {
+    employees: employees,
+    events: events,
+    manualEdits: manualEdits,
+    lockedCells: lockedCells,
+    lockedRows: lockedRows,
+    scheduleGlobalLock: scheduleGlobalLock,
+    auditLog: auditLog,
+    assignmentReasons: assignmentReasons,
+    assignmentReasonTags: assignmentReasonTags,
+    settings: settings,
+    eventTypes: eventTypes,
+    metadata: {
+      appVersion: APP_VERSION,
+      exportTimestamp: new Date().toISOString()
+    }
+  };
+}
+
+function exportData() {
+  var payload = getDataForExport();
+  var json = JSON.stringify(payload, null, 2);
+  var blob = new Blob([json], { type: 'application/json' });
+  var date = new Date();
+  var dateStr = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  var filename = 'banquetlogic-backup-' + dateStr + '.json';
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+var REQUIRED_IMPORT_KEYS = ['employees', 'events', 'manualEdits', 'lockedCells', 'lockedRows', 'scheduleGlobalLock', 'auditLog', 'assignmentReasons', 'assignmentReasonTags', 'settings', 'eventTypes'];
+
+function validateImportData(data) {
+  if (!data || typeof data !== 'object') return 'The file does not contain valid backup data.';
+  for (var i = 0; i < REQUIRED_IMPORT_KEYS.length; i++) {
+    var key = REQUIRED_IMPORT_KEYS[i];
+    if (!(key in data)) return 'The backup is missing required data: ' + key + '.';
+  }
+  if (!Array.isArray(data.employees)) return 'Employee data in the file is invalid.';
+  if (!Array.isArray(data.events)) return 'Event data in the file is invalid.';
+  if (!Array.isArray(data.auditLog)) return 'Audit log data in the file is invalid.';
+  if (!Array.isArray(data.eventTypes)) return 'Event types in the file are invalid.';
+  if (typeof data.manualEdits !== 'object' || data.manualEdits === null) return 'Schedule data in the file is invalid.';
+  if (typeof data.lockedCells !== 'object' || data.lockedCells === null) return 'Lock data in the file is invalid.';
+  if (typeof data.lockedRows !== 'object' || data.lockedRows === null) return 'Lock data in the file is invalid.';
+  if (typeof data.assignmentReasons !== 'object' || data.assignmentReasons === null) return 'Assignment data in the file is invalid.';
+  if (typeof data.assignmentReasonTags !== 'object' || data.assignmentReasonTags === null) return 'Assignment data in the file is invalid.';
+  if (typeof data.settings !== 'object' || data.settings === null) return 'Settings in the file are invalid.';
+  return null;
+}
+
+function applyImportedData(data) {
+  employees = Array.isArray(data.employees) ? data.employees : [];
+  events = Array.isArray(data.events) ? data.events : [];
+  manualEdits = data.manualEdits && typeof data.manualEdits === 'object' ? data.manualEdits : {};
+  lockedCells = data.lockedCells && typeof data.lockedCells === 'object' ? data.lockedCells : {};
+  lockedRows = data.lockedRows && typeof data.lockedRows === 'object' ? data.lockedRows : {};
+  scheduleGlobalLock = data.scheduleGlobalLock === true || data.scheduleGlobalLock === 'true';
+  auditLog = Array.isArray(data.auditLog) ? data.auditLog : [];
+  assignmentReasons = data.assignmentReasons && typeof data.assignmentReasons === 'object' ? data.assignmentReasons : {};
+  assignmentReasonTags = data.assignmentReasonTags && typeof data.assignmentReasonTags === 'object' ? data.assignmentReasonTags : {};
+  settings = data.settings && typeof data.settings === 'object' ? data.settings : { assignmentStyle: 'strict', ratios: {} };
+  eventTypes = Array.isArray(data.eventTypes) ? data.eventTypes : getDefaultEventTypes();
+  editingEventId = null;
+}
+
+function reRenderAfterImport() {
+  save();
+  renderEmployees();
+  renderEvents();
+  displaySchedule();
+  loadSettings();
+  renderAuditLog();
+  populateEventServiceDropdown();
+}
+
+function handleImportFile(ev) {
+  var file = ev.target.files[0];
+  ev.target.value = '';
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function() {
+    var errMsg = null;
+    var data = null;
+    try {
+      data = JSON.parse(reader.result);
+      errMsg = validateImportData(data);
+    } catch (e) {
+      errMsg = 'The file could not be read. It may be damaged or not a valid backup file.';
+    }
+    if (errMsg) {
+      alert(errMsg);
+      return;
+    }
+    if (!confirm('Importing will replace all existing data. Continue?')) return;
+    applyImportedData(data);
+    reRenderAfterImport();
+    alert('Import complete. Your backup has been restored.');
+  };
+  reader.onerror = function() {
+    alert('The file could not be read. Please try again.');
+  };
+  reader.readAsText(file, 'UTF-8');
 }
 
 function addAuditEntry(action, empId, date, oldValue, newValue){
