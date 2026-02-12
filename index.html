@@ -406,11 +406,16 @@ body.light-mode .audit-empty { color: #6b7280; background: #f9fafb; border-color
 
 /* PRINT */
 @media print {
-  body { background:#fff !important; color:#000 !important; }
+  body { background:#fff !important; color:#000 !important; padding: 6px 12px 0 12px !important; margin: 0 !important; }
   .tabs, button, input, select, textarea { display:none !important; }
   .tab { display:none !important; }
   #scheduleTab { display:block !important; padding: 0 !important; margin: 0 !important; }
   #scheduleTab h2 { display: none !important; }
+  /* Compact header: keep visible but reduce vertical space */
+  .app-header { padding: 6px 0 8px 0 !important; margin-bottom: 6px !important; }
+  .app-header .logo-wordmark { font-size: 1.1rem !important; }
+  .tagline { font-size: 12px !important; margin: 0 !important; }
+  .week-header { font-size: 12px !important; }
   /* Hide all UI-only instructional text and controls */
   .schedule-actions,
   .schedule-grid-helper,
@@ -468,6 +473,84 @@ body.light-mode .settings-section { background: #fff; border-color: #e5e7eb; }
   margin-top: 0;
   margin-bottom: 12px;
 }
+
+/* Shift Assignment Style: spacing, selected state, readability */
+.assignment-style-intro { margin-bottom: 4px; }
+.assignment-style-options { margin: 16px 0; }
+.assignment-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 14px 14px 16px;
+  margin-bottom: 14px;
+  background: var(--brand-bg-elevated);
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.assignment-option:last-of-type { margin-bottom: 0; }
+.assignment-option:hover { background: #34495e; }
+.assignment-option input[type="radio"] { margin-top: 4px; flex-shrink: 0; }
+.assignment-option-content { flex: 1; min-width: 0; }
+.assignment-option-title { display: block; color: var(--brand-primary); font-size: 14px; margin-bottom: 6px; }
+.assignment-option-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--brand-text-muted);
+  line-height: 1.55;
+  max-width: 56em;
+}
+.assignment-option:has(input:checked) {
+  border-left-color: var(--brand-primary);
+  background: rgba(78, 154, 241, 0.08);
+  border-color: var(--brand-primary);
+}
+body.light-mode .assignment-option { background: #f9fafb; border-color: #e5e7eb; }
+body.light-mode .assignment-option:hover { background: #f3f4f6; }
+body.light-mode .assignment-option:has(input:checked) { background: rgba(78, 154, 241, 0.06); border-color: var(--brand-primary); }
+body.light-mode .assignment-option-desc { color: #6b7280; }
+
+/* Event Types table: alignment, row height, Active column, button spacing */
+.event-types-table { margin-top: 12px; }
+.event-types-table th,
+.event-types-table td { vertical-align: middle; padding: 10px 12px; }
+.event-types-table th:first-child,
+.event-types-table td:first-child { text-align: left; }
+.event-types-table th:nth-child(2),
+.event-types-table td:nth-child(2) { text-align: left; }
+.event-types-table th:nth-child(3),
+.event-types-table td:nth-child(3) { text-align: center; width: 1%; white-space: nowrap; }
+.event-types-table th:nth-child(4),
+.event-types-table td:nth-child(4) { text-align: right; }
+.event-types-table .event-type-active-cell { text-align: center; }
+.event-types-table .event-type-active-cell input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+.event-types-table .event-type-actions-cell { text-align: right; }
+.event-types-table .event-type-actions { display: inline-flex; gap: 8px; }
+.event-type-add-btn { margin-top: 12px; }
+
+/* Data Management: grouped actions and spacing */
+.data-mgmt-actions { display: flex; flex-wrap: wrap; gap: 20px 24px; align-items: flex-start; margin-top: 16px; }
+.data-mgmt-group { display: flex; flex-direction: column; gap: 8px; }
+.data-mgmt-group-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--brand-text-muted); }
+.data-mgmt-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+.data-mgmt-note { font-size: 12px; color: var(--brand-text-muted); margin-top: 14px; }
+body.light-mode .data-mgmt-group-label { color: #6b7280; }
+
+/* Admin Clear All: keep visually distinct and dangerous */
+.settings-section-danger {
+  border: 1px solid #e74c3c !important;
+  background: #2a1f1f !important;
+  margin-top: 24px !important;
+}
+body.light-mode .settings-section-danger { background: #fef2f2 !important; border-color: #dc2626 !important; }
+.danger-heading { color: #e74c3c !important; }
+.danger-warning { color: #f0f0f0 !important; font-weight: bold; margin: 8px 0 12px 0; }
+body.light-mode .danger-warning { color: #b91c1c !important; }
+.btn-danger { background: #c0392b !important; color: #fff !important; }
+body.light-mode .btn-danger { background: #dc2626 !important; }
+
 .setting-row {
   margin: 10px 0;
   display: flex;
@@ -1060,41 +1143,28 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 
 <div class="settings-section">
   <h3>Shift Assignment Style</h3>
-  <p>Choose how shifts are assigned when generating schedules:</p>
+  <p class="assignment-style-intro">Choose how shifts are assigned when generating schedules:</p>
   
-  <div style="margin: 15px 0;">
-    <label for="assignmentStyle_strict" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
-      <input type="radio" id="assignmentStyle_strict" name="assignmentStyle" value="strict" checked style="margin-top: 5px;">
-      <div>
-        <strong style="color: #4e9af1;">Strict Seniority</strong>
-        <p style="margin: 5px 0 0 0; font-size: 13px; color: #95a5a6;">
-          Higher-seniority employees are always assigned first. Seniority 1 gets all available shifts before Seniority 2, and so on. 
-          Preferences are only respected if they don't conflict with seniority priority.
-        </p>
+  <div class="assignment-style-options">
+    <label for="assignmentStyle_strict" class="assignment-option">
+      <input type="radio" id="assignmentStyle_strict" name="assignmentStyle" value="strict" checked>
+      <div class="assignment-option-content">
+        <strong class="assignment-option-title">Strict Seniority</strong>
+        <p class="assignment-option-desc">Higher-seniority employees are always assigned first. Seniority 1 gets all available shifts before Seniority 2, and so on. Preferences are only respected if they don't conflict with seniority priority.</p>
       </div>
     </label>
-    
-    <label for="assignmentStyle_balanced" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
-      <input type="radio" id="assignmentStyle_balanced" name="assignmentStyle" value="balanced" style="margin-top: 5px;">
-      <div>
-        <strong style="color: #4e9af1;">Seniority + Balanced Coverage</strong>
-        <p style="margin: 5px 0 0 0; font-size: 13px; color: #95a5a6;">
-          Seniority is prioritized, but shifts are balanced across employee groups (FT/PT). 
-          Prevents one group from getting all shifts while others are eligible. 
-          Better distribution while still respecting seniority within each group.
-        </p>
+    <label for="assignmentStyle_balanced" class="assignment-option">
+      <input type="radio" id="assignmentStyle_balanced" name="assignmentStyle" value="balanced">
+      <div class="assignment-option-content">
+        <strong class="assignment-option-title">Seniority + Balanced Coverage</strong>
+        <p class="assignment-option-desc">Seniority is prioritized, but shifts are balanced across employee groups (FT/PT). Prevents one group from getting all shifts while others are eligible. Better distribution while still respecting seniority within each group.</p>
       </div>
     </label>
-    
-    <label for="assignmentStyle_fair" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #34495e; border-radius: 6px; margin-bottom: 10px; cursor: pointer;">
-      <input type="radio" id="assignmentStyle_fair" name="assignmentStyle" value="fair" style="margin-top: 5px;">
-      <div>
-        <strong style="color: #4e9af1;">Fair Distribution</strong>
-        <p style="margin: 5px 0 0 0; font-size: 13px; color: #95a5a6;">
-          Shifts distributed as evenly as possible across all eligible employees. 
-          Everyone gets similar hours regardless of seniority. 
-          Seniority is only used as a tie-breaker when two employees have equal hours.
-        </p>
+    <label for="assignmentStyle_fair" class="assignment-option">
+      <input type="radio" id="assignmentStyle_fair" name="assignmentStyle" value="fair">
+      <div class="assignment-option-content">
+        <strong class="assignment-option-title">Fair Distribution</strong>
+        <p class="assignment-option-desc">Shifts distributed as evenly as possible across all eligible employees. Everyone gets similar hours regardless of seniority. Seniority is only used as a tie-breaker when two employees have equal hours.</p>
       </div>
     </label>
   </div>
@@ -1106,7 +1176,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   <h3>Event Types</h3>
   <p>Define event types and staffing ratios (1 server per X guests). Inactive types are hidden when creating events but existing events keep displaying correctly.</p>
   
-  <table class="settings-table" style="margin-top: 12px;">
+  <table class="settings-table event-types-table">
     <thead>
       <tr>
         <th>Name</th>
@@ -1117,7 +1187,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
     </thead>
     <tbody id="eventTypesTableBody"></tbody>
   </table>
-  <button type="button" onclick="openEventTypeModal()" style="margin-top: 12px;">Add event type</button>
+  <button type="button" onclick="openEventTypeModal()" class="event-type-add-btn">Add event type</button>
 </div>
 
 <div id="eventTypeModalOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;">
@@ -1142,14 +1212,24 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <div class="settings-section" id="dataManagementSection">
   <h3>Data Management</h3>
   <p>Back up your data to a file or restore from a previous backup. The app also saves automatic backups when you make changes (not during demo mode).</p>
-  <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 12px;">
-    <button type="button" onclick="exportData()">Export Data</button>
-    <button type="button" onclick="document.getElementById('importDataFile').click()">Import Data</button>
-    <button type="button" onclick="createManualBackup()">Create backup now</button>
-    <button type="button" onclick="openRestoreBackupModal()">Restore from Backup</button>
+  <div class="data-mgmt-actions">
+    <div class="data-mgmt-group">
+      <span class="data-mgmt-group-label">Export / Import</span>
+      <div class="data-mgmt-buttons">
+        <button type="button" onclick="exportData()">Export Data</button>
+        <button type="button" onclick="document.getElementById('importDataFile').click()">Import Data</button>
+      </div>
+    </div>
+    <div class="data-mgmt-group">
+      <span class="data-mgmt-group-label">Backup</span>
+      <div class="data-mgmt-buttons">
+        <button type="button" onclick="createManualBackup()">Create backup now</button>
+        <button type="button" onclick="openRestoreBackupModal()">Restore from Backup</button>
+      </div>
+    </div>
     <input type="file" id="importDataFile" accept=".json,application/json" style="display: none;" onchange="handleImportFile(event)" />
   </div>
-  <p style="font-size: 12px; color: var(--brand-text-muted); margin-top: 10px;">Import replaces everything currently in the app with the file you choose. Restore from Backup uses a backup saved automatically or one you exported earlier.</p>
+  <p class="data-mgmt-note">Import replaces everything currently in the app with the file you choose. Restore from Backup uses a backup saved automatically or one you exported earlier.</p>
 </div>
 
 <div id="restoreBackupModalOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;" onclick="if(event.target===this) closeRestoreBackupModal();">
@@ -1163,11 +1243,11 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   </div>
 </div>
 
-<div class="settings-section" style="border: 1px solid #e74c3c; background: #2a1f1f;">
-  <h3 style="color: #e74c3c;">Admin: Clear All Data</h3>
+<div class="settings-section settings-section-danger">
+  <h3 class="danger-heading">Admin: Clear All Data</h3>
   <p>Reset the app to a completely fresh state. Use this to remove all employees, events, schedules (all weeks), audit log, and demo data.</p>
-  <p style="color: #f0f0f0; font-weight: bold;">This action cannot be undone. All data will be permanently deleted.</p>
-  <button type="button" onclick="clearAllData()" style="background: #c0392b;">Clear All Employee Data</button>
+  <p class="danger-warning">This action cannot be undone. All data will be permanently deleted.</p>
+  <button type="button" onclick="clearAllData()" class="btn-danger">Clear All Employee Data</button>
 </div>
 </div>
 
@@ -4363,9 +4443,8 @@ function renderEventTypesTable(){
     tr.innerHTML =
       '<td>' + (t.name || '') + '</td>' +
       '<td>1 per ' + t.guestsPerServer + ' guests</td>' +
-      '<td><input type="checkbox" ' + (t.active ? 'checked' : '') + ' onchange="toggleEventTypeActive(\'' + t.id + '\')" /></td>' +
-      '<td><button type="button" onclick="openEventTypeModal(\'' + t.id + '\')">Edit</button> ' +
-      '<button type="button" onclick="deleteEventType(\'' + t.id + '\')">Delete</button></td>';
+      '<td class="event-type-active-cell"><input type="checkbox" ' + (t.active ? 'checked' : '') + ' onchange="toggleEventTypeActive(\'' + t.id + '\')" /></td>' +
+      '<td class="event-type-actions-cell"><span class="event-type-actions"><button type="button" onclick="openEventTypeModal(\'' + t.id + '\')">Edit</button><button type="button" onclick="deleteEventType(\'' + t.id + '\')">Delete</button></span></td>';
     tbody.appendChild(tr);
   });
 }
