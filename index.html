@@ -359,6 +359,12 @@ body.light-mode .settings-section { background: #fff; border-color: #e5e7eb; }
   width: 100px;
 }
 
+.settings-table { width: 100%; border-collapse: collapse; }
+.settings-table th, .settings-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--brand-border); }
+.settings-table th { color: var(--brand-text-muted); font-weight: 500; }
+body.light-mode .settings-table th, body.light-mode .settings-table td { border-color: #e5e7eb; }
+body.light-mode .settings-table th { color: #6b7280; }
+
 /* RESPONSIVE: Make table scrollable on smaller screens */
 @media (max-width: 1024px) {
   body {
@@ -782,12 +788,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <input id="eventEnd" type="time" onchange="autoRecommendStaff()" />
 <input id="eventGuests" type="number" placeholder="Guests" oninput="autoRecommendStaff()" />
 
-<select id="eventService" onchange="autoRecommendStaff()">
-  <option value="Plated Service">Plated Service</option>
-  <option value="Buffet Service">Buffet Service</option>
-  <option value="Reception">Reception</option>
-  <option value="Coffee Break">Coffee Break</option>
-</select>
+<select id="eventService" onchange="autoRecommendStaff()"></select>
 
 <input id="eventStaff" type="number" placeholder="Staff Needed" />
 <button type="button" onclick="addEvent()">Add / Save</button>
@@ -885,39 +886,41 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   <button type="button" onclick="saveSettings()">Save Settings</button>
 </div>
 
-<div class="settings-section">
-  <h3>Staffing Ratios</h3>
-  <p>Set the recommended number of guests per server for each service type:</p>
+<div class="settings-section" id="eventTypesSection">
+  <h3>Event Types</h3>
+  <p>Define event types and staffing ratios (1 server per X guests). Inactive types are hidden when creating events but existing events keep displaying correctly.</p>
   
-  <div class="setting-row">
-    <label for="ratioPlated">Plated Service:</label>
-    <span>1 server per</span>
-    <input type="number" id="ratioPlated" value="20" min="1" />
-    <span>guests</span>
+  <table class="settings-table" style="margin-top: 12px;">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>1 Server per ___ Guests</th>
+        <th>Active</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="eventTypesTableBody"></tbody>
+  </table>
+  <button type="button" onclick="openEventTypeModal()" style="margin-top: 12px;">Add event type</button>
+</div>
+
+<div id="eventTypeModalOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;">
+  <div id="eventTypeModal" style="background: #2c3e50; padding: 24px; border-radius: 8px; min-width: 320px; max-width: 90%;">
+    <h3 style="margin-top: 0;" id="eventTypeModalTitle">Add event type</h3>
+    <input type="hidden" id="eventTypeEditId" value="" />
+    <div style="margin-bottom: 12px;">
+      <label for="eventTypeName" style="display: block; margin-bottom: 4px;">Name</label>
+      <input type="text" id="eventTypeName" placeholder="e.g. Plated Service" style="width: 100%; padding: 8px; box-sizing: border-box;" />
+    </div>
+    <div style="margin-bottom: 16px;">
+      <label for="eventTypeGuestsPerServer" style="display: block; margin-bottom: 4px;">1 Server per ___ Guests</label>
+      <input type="number" id="eventTypeGuestsPerServer" min="1" value="20" style="width: 100px; padding: 8px;" />
+    </div>
+    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+      <button type="button" onclick="closeEventTypeModal()">Cancel</button>
+      <button type="button" onclick="saveEventTypeFromModal()">Save</button>
+    </div>
   </div>
-  
-  <div class="setting-row">
-    <label for="ratioBuffet">Buffet Service:</label>
-    <span>1 server per</span>
-    <input type="number" id="ratioBuffet" value="30" min="1" />
-    <span>guests</span>
-  </div>
-  
-  <div class="setting-row">
-    <label for="ratioReception">Reception:</label>
-    <span>1 server per</span>
-    <input type="number" id="ratioReception" value="40" min="1" />
-    <span>guests</span>
-  </div>
-  
-  <div class="setting-row">
-    <label for="ratioCoffee">Coffee Break:</label>
-    <span>1 server per</span>
-    <input type="number" id="ratioCoffee" value="50" min="1" />
-    <span>guests</span>
-  </div>
-  
-  <button type="button" onclick="saveSettings()">Save Settings</button>
 </div>
 
 <div class="settings-section" style="border: 1px solid #e74c3c; background: #2a1f1f;">
@@ -1126,6 +1129,25 @@ let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
     "Coffee Break": 50
   }
 }));
+
+function getDefaultEventTypes() {
+  var r = settings.ratios || { "Plated Service": 20, "Buffet Service": 30, "Reception": 40, "Coffee Break": 50 };
+  return Object.keys(r).map(function(name) {
+    return { id: crypto.randomUUID(), name: name, guestsPerServer: r[name], active: true };
+  });
+}
+var eventTypes = JSON.parse(localStorage.getItem("eventTypes") || "null");
+if (!eventTypes || eventTypes.length === 0) {
+  eventTypes = getDefaultEventTypes();
+  localStorage.setItem("eventTypes", JSON.stringify(eventTypes));
+}
+function getActiveEventTypes() { return eventTypes.filter(function(t) { return t.active; }); }
+function getEventTypeById(id) { return eventTypes.find(function(t) { return t.id === id; }); }
+function getEventTypeByName(name) { return eventTypes.find(function(t) { return t.name === name; }); }
+function isEventTypeUsedByEvents(type) {
+  return events.some(function(ev) { return ev.eventTypeId === type.id || ev.service === type.name; });
+}
+
 let editingEventId = null;
 let currentWeekOffset = 0;
 
@@ -1145,6 +1167,8 @@ let currentWeekOffset = 0;
     editingEventId = null;
     currentWeekOffset = 0;
     settings = { assignmentStyle: 'strict', ratios: { 'Plated Service': 20, 'Buffet Service': 30, 'Reception': 40, 'Coffee Break': 50 } };
+    eventTypes = getDefaultEventTypes();
+    localStorage.setItem('eventTypes', JSON.stringify(eventTypes));
     localStorage.setItem('employees', '[]');
     localStorage.setItem('events', '[]');
     localStorage.setItem('manualEdits', '{}');
@@ -1184,6 +1208,7 @@ function save(){
   localStorage.setItem("assignmentReasons", JSON.stringify(assignmentReasons));
   localStorage.setItem("assignmentReasonTags", JSON.stringify(assignmentReasonTags));
   localStorage.setItem("settings", JSON.stringify(settings));
+  localStorage.setItem("eventTypes", JSON.stringify(eventTypes));
 }
 
 function addAuditEntry(action, empId, date, oldValue, newValue){
@@ -1210,7 +1235,7 @@ function showTab(id){
   document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
   document.getElementById(id).classList.add("active");
   if(id==="employeesTab") tabEmpBtn.classList.add("active");
-  if(id==="eventsTab") tabEvBtn.classList.add("active");
+  if(id==="eventsTab") { tabEvBtn.classList.add("active"); populateEventServiceDropdown(); }
   if(id==="scheduleTab") { tabSchBtn.classList.add("active"); displaySchedule(); }
   if(id==="auditTab") { tabAuditBtn.classList.add("active"); renderAuditLog(); }
   if(id==="settingsTab") { tabSettingsBtn.classList.add("active"); loadSettings(); }
@@ -2303,25 +2328,44 @@ function initEmployeeEditModal() {
 }
 
 /* EVENTS */
+function populateEventServiceDropdown(){
+  var sel = document.getElementById('eventService');
+  if (!sel) return;
+  var active = getActiveEventTypes();
+  sel.innerHTML = '';
+  active.forEach(function(t){
+    var opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.name;
+    sel.appendChild(opt);
+  });
+}
+
 function autoRecommendStaff(){
-  const guests=+eventGuests.value;
-  if(!guests) return;
-  const serviceType = eventService.value;
-  const ratio = settings.ratios[serviceType] || 30;
-  eventStaff.value=Math.ceil(guests/ratio);
+  const guests = +eventGuests.value;
+  if (!guests) return;
+  const typeId = eventService.value;
+  const t = getEventTypeById(typeId);
+  const ratio = t ? t.guestsPerServer : 30;
+  eventStaff.value = Math.ceil(guests / ratio);
 }
 
 function addEvent(){
   if(!eventName.value || !eventDate.value) return;
+  var typeId = eventService.value;
+  var type = getEventTypeById(typeId);
+  var typeName = type ? type.name : (eventService.options[eventService.selectedIndex] ? eventService.options[eventService.selectedIndex].text : '');
   const data={
     id: editingEventId || crypto.randomUUID(),
-    name:eventName.value,
-    date:eventDate.value,
-    start:eventStart.value || "09:00",
-    end:eventEnd.value || "17:00",
-    guests:+eventGuests.value || 0,
-    service:eventService.value,
-    staff:+eventStaff.value || 1
+    name: eventName.value,
+    date: eventDate.value,
+    start: eventStart.value || "09:00",
+    end: eventEnd.value || "17:00",
+    guests: +eventGuests.value || 0,
+    service: typeName,
+    eventTypeId: typeId || undefined,
+    eventTypeName: typeName,
+    staff: +eventStaff.value || 1
   };
   
   if(editingEventId){
@@ -2356,7 +2400,7 @@ function renderEvents(){
       <td>${ev.date}</td>
       <td>${ev.start}–${ev.end}</td>
       <td>${ev.guests}</td>
-      <td>${ev.service}</td>
+      <td>${ev.eventTypeName || ev.service || ev.serviceType || ''}</td>
       <td>${ev.staff}</td>
       <td><button type="button" class="edit-btn">Edit</button></td>
       <td><button type="button" class="delete">Delete</button></td>
@@ -2375,15 +2419,26 @@ function renderEvents(){
 }
 
 function editEvent(id){
-  const e=events.find(x=>x.id===id);
-  editingEventId=id;
-  eventName.value=e.name;
-  eventDate.value=e.date;
-  eventStart.value=e.start;
-  eventEnd.value=e.end;
-  eventGuests.value=e.guests;
-  eventService.value=e.service;
-  eventStaff.value=e.staff;
+  const e = events.find(x => x.id === id);
+  editingEventId = id;
+  eventName.value = e.name;
+  eventDate.value = e.date;
+  eventStart.value = e.start || '09:00';
+  eventEnd.value = e.end || '17:00';
+  eventGuests.value = e.guests;
+  var typeId = e.eventTypeId || (getEventTypeByName(e.service) ? getEventTypeByName(e.service).id : '');
+  var type = typeId ? getEventTypeById(typeId) : null;
+  if (typeId && type && !type.active) {
+    var hasOpt = [].slice.call(eventService.options).some(function(o) { return o.value === typeId; });
+    if (!hasOpt) {
+      var opt = document.createElement('option');
+      opt.value = typeId;
+      opt.textContent = e.eventTypeName || e.service || type.name || 'Unknown';
+      eventService.appendChild(opt);
+    }
+  }
+  eventService.value = typeId || (eventService.options.length ? eventService.options[0].value : '');
+  eventStaff.value = e.staff;
 }
 
 function deleteEvent(id){
@@ -3650,12 +3705,82 @@ function loadSettings(){
   radioButtons.forEach(radio => {
     radio.checked = radio.value === assignmentStyle;
   });
-  
-  // Load ratios
-  document.getElementById('ratioPlated').value = settings.ratios["Plated Service"];
-  document.getElementById('ratioBuffet').value = settings.ratios["Buffet Service"];
-  document.getElementById('ratioReception').value = settings.ratios["Reception"];
-  document.getElementById('ratioCoffee').value = settings.ratios["Coffee Break"];
+  renderEventTypesTable();
+}
+
+function renderEventTypesTable(){
+  const tbody = document.getElementById('eventTypesTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  eventTypes.forEach(function(t){
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-event-type-id', t.id);
+    if (!t.active) tr.style.opacity = '0.6';
+    tr.innerHTML =
+      '<td>' + (t.name || '') + '</td>' +
+      '<td>1 per ' + t.guestsPerServer + ' guests</td>' +
+      '<td><input type="checkbox" ' + (t.active ? 'checked' : '') + ' onchange="toggleEventTypeActive(\'' + t.id + '\')" /></td>' +
+      '<td><button type="button" onclick="openEventTypeModal(\'' + t.id + '\')">Edit</button> ' +
+      '<button type="button" onclick="deleteEventType(\'' + t.id + '\')">Delete</button></td>';
+    tbody.appendChild(tr);
+  });
+}
+
+function openEventTypeModal(editId){
+  document.getElementById('eventTypeModalTitle').textContent = editId ? 'Edit event type' : 'Add event type';
+  document.getElementById('eventTypeEditId').value = editId || '';
+  if (editId) {
+    var t = getEventTypeById(editId);
+    if (t) {
+      document.getElementById('eventTypeName').value = t.name || '';
+      document.getElementById('eventTypeGuestsPerServer').value = t.guestsPerServer || 20;
+    }
+  } else {
+    document.getElementById('eventTypeName').value = '';
+    document.getElementById('eventTypeGuestsPerServer').value = 20;
+  }
+  document.getElementById('eventTypeModalOverlay').style.display = 'flex';
+}
+
+function closeEventTypeModal(){
+  document.getElementById('eventTypeModalOverlay').style.display = 'none';
+}
+
+function saveEventTypeFromModal(){
+  var name = document.getElementById('eventTypeName').value.trim();
+  var guestsPerServer = parseInt(document.getElementById('eventTypeGuestsPerServer').value, 10) || 20;
+  var editId = document.getElementById('eventTypeEditId').value;
+  if (!name) { alert('Please enter a name.'); return; }
+  if (guestsPerServer < 1) { alert('Guests per server must be at least 1.'); return; }
+  if (editId) {
+    var t = getEventTypeById(editId);
+    if (t) { t.name = name; t.guestsPerServer = guestsPerServer; }
+  } else {
+    eventTypes.push({ id: crypto.randomUUID(), name: name, guestsPerServer: guestsPerServer, active: true });
+  }
+  save();
+  renderEventTypesTable();
+  closeEventTypeModal();
+  populateEventServiceDropdown();
+}
+
+function toggleEventTypeActive(id){
+  var t = getEventTypeById(id);
+  if (t) { t.active = !t.active; save(); renderEventTypesTable(); populateEventServiceDropdown(); }
+}
+
+function deleteEventType(id){
+  var t = getEventTypeById(id);
+  if (!t) return;
+  if (isEventTypeUsedByEvents(t)) {
+    alert('This event type cannot be deleted because it is used by one or more events. Disable it instead to hide it from new events.');
+    return;
+  }
+  if (!confirm('Delete event type "' + t.name + '"?')) return;
+  eventTypes = eventTypes.filter(function(x) { return x.id !== id; });
+  save();
+  renderEventTypesTable();
+  populateEventServiceDropdown();
 }
 
 function saveSettings(){
@@ -3664,13 +3789,6 @@ function saveSettings(){
   if(selectedStyle) {
     settings.assignmentStyle = selectedStyle.value;
   }
-  
-  // Save ratios
-  settings.ratios["Plated Service"] = +document.getElementById('ratioPlated').value;
-  settings.ratios["Buffet Service"] = +document.getElementById('ratioBuffet').value;
-  settings.ratios["Reception"] = +document.getElementById('ratioReception').value;
-  settings.ratios["Coffee Break"] = +document.getElementById('ratioCoffee').value;
-  
   save();
   alert('Settings saved!');
 }
@@ -3706,6 +3824,7 @@ function clearAllData() {
       'Coffee Break': 50
     }
   };
+  eventTypes = getDefaultEventTypes();
   save();
   var banner = document.getElementById('demoModeBanner');
   if (banner) banner.classList.remove('demo-mode-banner-visible');
@@ -3999,8 +4118,9 @@ function demoStep5_AddEvents() {
     const eventDate = new Date(weekStart);
     eventDate.setDate(weekStart.getDate() + evt.day);
     
-    const staffNeeded = Math.ceil(evt.guests / settings.ratios[evt.serviceType]);
-    
+    var type = getEventTypeByName(evt.serviceType);
+    var ratio = type ? type.guestsPerServer : (settings.ratios[evt.serviceType] || 30);
+    const staffNeeded = Math.ceil(evt.guests / ratio);
     events.push({
       id: crypto.randomUUID(),
       name: evt.name,
@@ -4008,7 +4128,9 @@ function demoStep5_AddEvents() {
       start: evt.start,
       end: evt.end,
       guests: evt.guests,
-      serviceType: evt.serviceType,
+      service: evt.serviceType,
+      eventTypeId: type ? type.id : undefined,
+      eventTypeName: evt.serviceType,
       staff: staffNeeded
     });
   });
