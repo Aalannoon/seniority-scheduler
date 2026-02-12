@@ -809,6 +809,36 @@ let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
 let editingEventId = null;
 let currentWeekOffset = 0;
 
+(function clearDemoDataIfRefresh() {
+  try {
+    if (!sessionStorage.getItem('banquetlogic_demo_active')) return;
+    employees = [];
+    events = [];
+    manualEdits = {};
+    lockedCells = {};
+    lockedRows = {};
+    scheduleGlobalLock = false;
+    auditLog = [];
+    assignmentReasons = {};
+    assignmentReasonTags = {};
+    generationConflicts = [];
+    editingEventId = null;
+    currentWeekOffset = 0;
+    settings = { assignmentStyle: 'strict', ratios: { 'Plated Service': 20, 'Buffet Service': 30, 'Reception': 40, 'Coffee Break': 50 } };
+    localStorage.setItem('employees', '[]');
+    localStorage.setItem('events', '[]');
+    localStorage.setItem('manualEdits', '{}');
+    localStorage.setItem('lockedCells', '{}');
+    localStorage.setItem('lockedRows', '{}');
+    localStorage.setItem('scheduleGlobalLock', 'false');
+    localStorage.setItem('auditLog', '[]');
+    localStorage.setItem('assignmentReasons', '{}');
+    localStorage.setItem('assignmentReasonTags', '{}');
+    localStorage.setItem('settings', JSON.stringify(settings));
+    sessionStorage.removeItem('banquetlogic_demo_active');
+  } catch (e) {}
+})();
+
 // Initialize day preferences for existing employees (backward compatibility)
 employees.forEach(emp => {
   if(!emp.dayPreferences) {
@@ -3054,6 +3084,7 @@ function startDemo() {
   };
   
   demoInProgress = true;
+  try { sessionStorage.setItem('banquetlogic_demo_active', '1'); } catch (e) {}
   document.getElementById('demoModeBanner').classList.add('demo-mode-banner-visible');
   document.getElementById('demoStopArea').style.display = 'block';
   document.getElementById('demoStatus').style.display = 'block';
@@ -3092,6 +3123,7 @@ function performDemoCleanup(skipConfirm) {
   
   demoInProgress = false;
   demoBackupData = null;
+  try { sessionStorage.removeItem('banquetlogic_demo_active'); } catch (e) {}
   const banner = document.getElementById('demoModeBanner');
   if (banner) banner.classList.remove('demo-mode-banner-visible');
   const tip = document.getElementById('demoTip');
