@@ -618,6 +618,13 @@ body.light-mode .demo-tip {
   
   <button type="button" onclick="saveSettings()">Save Settings</button>
 </div>
+
+<div class="settings-section" style="border: 1px solid #e74c3c; background: #2a1f1f;">
+  <h3 style="color: #e74c3c;">Admin: Clear All Data</h3>
+  <p>Reset the app to a completely fresh state. Use this to remove all employees, events, schedules (all weeks), audit log, and demo data.</p>
+  <p style="color: #f0f0f0; font-weight: bold;">This action cannot be undone. All data will be permanently deleted.</p>
+  <button type="button" onclick="clearAllData()" style="background: #c0392b;">Clear All Employee Data</button>
+</div>
 </div>
 
 <!-- SUPPORT / CONTACT -->
@@ -2887,6 +2894,59 @@ function saveSettings(){
   
   save();
   alert('Settings saved!');
+}
+
+function clearAllData() {
+  var msg = 'This will permanently delete ALL data:\n\n' +
+    '• All employees\n• All events\n• All schedules (every week)\n• Audit log\n• Assignment explanations\n\n' +
+    'Demo mode will be reset. Settings will be restored to defaults.\n\n' +
+    'This cannot be undone. Are you sure you want to clear everything?';
+  if (!confirm(msg)) return;
+  clearTimeout(demoTimer);
+  demoTimer = null;
+  demoInProgress = false;
+  demoBackupData = null;
+  employees = [];
+  events = [];
+  manualEdits = {};
+  lockedCells = {};
+  lockedRows = {};
+  scheduleGlobalLock = false;
+  auditLog = [];
+  assignmentReasons = {};
+  assignmentReasonTags = {};
+  generationConflicts = [];
+  editingEventId = null;
+  currentWeekOffset = 0;
+  settings = {
+    assignmentStyle: 'strict',
+    ratios: {
+      'Plated Service': 20,
+      'Buffet Service': 30,
+      'Reception': 40,
+      'Coffee Break': 50
+    }
+  };
+  save();
+  var banner = document.getElementById('demoModeBanner');
+  if (banner) banner.classList.remove('demo-mode-banner-visible');
+  var tip = document.getElementById('demoTip');
+  if (tip) tip.classList.remove('demo-tip-visible');
+  var stopArea = document.getElementById('demoStopArea');
+  if (stopArea) stopArea.style.display = 'none';
+  var status = document.getElementById('demoStatus');
+  if (status) status.style.display = 'none';
+  var instructions = document.getElementById('demoInstructions');
+  if (instructions) instructions.style.display = 'block';
+  if (typeof tabDemoBtn !== 'undefined') tabDemoBtn.classList.remove('demo-active');
+  var conflictBtn = document.getElementById('conflictReportBtn');
+  if (conflictBtn) { conflictBtn.style.display = 'none'; conflictBtn.textContent = '⚠️ Conflicts'; }
+  renderEmployees();
+  renderEvents();
+  displaySchedule();
+  loadSettings();
+  showTab('employeesTab');
+  alert('All data has been permanently deleted. The app is now in a fresh state.');
 }
 
 /* SUPPORT / CONTACT */
