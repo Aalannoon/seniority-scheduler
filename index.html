@@ -925,13 +925,26 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 
 <div class="settings-section" id="dataManagementSection">
   <h3>Data Management</h3>
-  <p>Back up your data to a file or restore from a previous backup. Export includes employees, events, schedules, event types, and settings.</p>
+  <p>Back up your data to a file or restore from a previous backup. The app also saves automatic backups when you make changes (not during demo mode).</p>
   <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 12px;">
     <button type="button" onclick="exportData()">Export Data</button>
     <button type="button" onclick="document.getElementById('importDataFile').click()">Import Data</button>
+    <button type="button" onclick="createManualBackup()">Create backup now</button>
+    <button type="button" onclick="openRestoreBackupModal()">Restore from Backup</button>
     <input type="file" id="importDataFile" accept=".json,application/json" style="display: none;" onchange="handleImportFile(event)" />
   </div>
-  <p style="font-size: 12px; color: var(--brand-text-muted); margin-top: 10px;">Import replaces everything currently in the app with the backup. Use Export first if you want to keep your current data.</p>
+  <p style="font-size: 12px; color: var(--brand-text-muted); margin-top: 10px;">Import replaces everything currently in the app with the file you choose. Restore from Backup uses a backup saved automatically or one you exported earlier.</p>
+</div>
+
+<div id="restoreBackupModalOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center;" onclick="if(event.target===this) closeRestoreBackupModal();">
+  <div id="restoreBackupModal" style="background: #2c3e50; padding: 24px; border-radius: 8px; min-width: 360px; max-width: 95%; max-height: 85vh; overflow: auto;" onclick="event.stopPropagation();">
+    <h3 style="margin-top: 0;">Restore from Backup</h3>
+    <p style="color: var(--brand-text-muted); font-size: 13px; margin-bottom: 16px;">Choose a backup to restore or export to a file.</p>
+    <div id="restoreBackupList"></div>
+    <div style="margin-top: 16px;">
+      <button type="button" onclick="closeRestoreBackupModal()">Close</button>
+    </div>
+  </div>
 </div>
 
 <div class="settings-section" style="border: 1px solid #e74c3c; background: #2a1f1f;">
@@ -1222,6 +1235,7 @@ function save(){
   localStorage.setItem("assignmentReasonTags", JSON.stringify(assignmentReasonTags));
   localStorage.setItem("settings", JSON.stringify(settings));
   localStorage.setItem("eventTypes", JSON.stringify(eventTypes));
+  scheduleAutoBackup();
 }
 
 /* DATA EXPORT / IMPORT (centralized for future cloud sync) */
@@ -1244,6 +1258,213 @@ function getDataForExport() {
       exportTimestamp: new Date().toISOString()
     }
   };
+}
+
+function getDataForBackup(backupType) {
+  var payload = getDataForExport();
+  payload.metadata.exportTimestamp = undefined;
+  payload.metadata.backupTimestamp = new Date().toISOString();
+  payload.metadata.backupType = backupType;
+  return payload;
+}
+
+/* AUTOMATIC BACKUPS (IndexedDB – separate from live data) */
+var BACKUP_DB_NAME = 'BanquetLogicBackups';
+var BACKUP_STORE = 'backups';
+var MAX_AUTO_BACKUPS = 10;
+var lastAutoBackupTime = 0;
+var AUTO_BACKUP_THROTTLE_MS = 60000;
+
+function backupOpenDB() {
+  return new Promise(function(resolve, reject) {
+    var req = indexedDB.open(BACKUP_DB_NAME, 1);
+    req.onerror = function() { reject(req.error); };
+    req.onsuccess = function() { resolve(req.result); };
+    req.onupgradeneeded = function(ev) {
+      var db = ev.target.result;
+      if (!db.objectStoreNames.contains(BACKUP_STORE)) {
+        var store = db.createObjectStore(BACKUP_STORE, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('byTimestamp', 'backupTimestamp', { unique: false });
+        store.createIndex('byType', 'backupType', { unique: false });
+      }
+    };
+  });
+}
+
+function backupCreate(backupType, payload) {
+  if (!payload) payload = getDataForBackup(backupType);
+  var record = {
+    backupTimestamp: payload.metadata.backupTimestamp,
+    backupType: backupType,
+    data: payload
+  };
+  return backupOpenDB().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var tx = db.transaction(BACKUP_STORE, 'readwrite');
+      var store = tx.objectStore(BACKUP_STORE);
+      var req = store.add(record);
+      req.onsuccess = function() { db.close(); resolve(req.result); };
+      req.onerror = function() { db.close(); reject(req.error); };
+    });
+  });
+}
+
+function backupList() {
+  return backupOpenDB().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var tx = db.transaction(BACKUP_STORE, 'readonly');
+      var store = tx.objectStore(BACKUP_STORE);
+      var req = store.getAll();
+      req.onsuccess = function() {
+        db.close();
+        var list = req.result || [];
+        list.sort(function(a, b) {
+          var tA = a.backupTimestamp || '';
+          var tB = b.backupTimestamp || '';
+          return tA > tB ? -1 : tA < tB ? 1 : 0;
+        });
+        resolve(list);
+      };
+      req.onerror = function() { db.close(); reject(req.error); };
+    });
+  });
+}
+
+function backupGet(id) {
+  return backupOpenDB().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var tx = db.transaction(BACKUP_STORE, 'readonly');
+      var store = tx.objectStore(BACKUP_STORE);
+      var req = store.get(id);
+      req.onsuccess = function() { db.close(); resolve(req.result); };
+      req.onerror = function() { db.close(); reject(req.error); };
+    });
+  });
+}
+
+function backupDelete(id) {
+  return backupOpenDB().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var tx = db.transaction(BACKUP_STORE, 'readwrite');
+      var store = tx.objectStore(BACKUP_STORE);
+      var req = store.delete(id);
+      req.onsuccess = function() { db.close(); resolve(); };
+      req.onerror = function() { db.close(); reject(req.error); };
+    });
+  });
+}
+
+function backupPruneAuto() {
+  return backupList().then(function(list) {
+    var auto = list.filter(function(b) { return b.backupType === 'auto'; });
+    if (auto.length <= MAX_AUTO_BACKUPS) return Promise.resolve();
+    var toRemove = auto.slice(MAX_AUTO_BACKUPS);
+    return Promise.all(toRemove.map(function(b) { return backupDelete(b.id); }));
+  });
+}
+
+function scheduleAutoBackup() {
+  if (typeof demoInProgress !== 'undefined' && demoInProgress) return;
+  var now = Date.now();
+  if (lastAutoBackupTime && (now - lastAutoBackupTime) < AUTO_BACKUP_THROTTLE_MS) return;
+  lastAutoBackupTime = now;
+  backupCreate('auto').then(function() {
+    return backupPruneAuto();
+  }).catch(function() {});
+}
+
+function formatBackupLabel(record) {
+  var ts = record.backupTimestamp || '';
+  var type = (record.backupType === 'manual') ? 'Manual Backup' : 'Auto Backup';
+  var dateStr = '';
+  if (ts) {
+    try {
+      var d = new Date(ts);
+      dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + ', ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    } catch (e) { dateStr = ts; }
+  } else {
+    dateStr = 'Unknown date';
+  }
+  return type + ' – ' + dateStr;
+}
+
+function openRestoreBackupModal() {
+  document.getElementById('restoreBackupModalOverlay').style.display = 'flex';
+  var listEl = document.getElementById('restoreBackupList');
+  listEl.innerHTML = '<p style="color: var(--brand-text-muted);">Loading backups…</p>';
+  backupList().then(function(list) {
+    if (!list.length) {
+      listEl.innerHTML = '<p style="color: var(--brand-text-muted);">No backups found. Automatic backups are created when you make changes.</p>';
+      return;
+    }
+    listEl.innerHTML = '';
+    list.forEach(function(rec) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--brand-border);';
+      row.innerHTML = '<span>' + formatBackupLabel(rec) + '</span><span><button type="button" onclick="restoreFromBackup(' + rec.id + ')">Restore</button> <button type="button" onclick="exportBackupToFile(' + rec.id + ')">Export</button></span>';
+      listEl.appendChild(row);
+    });
+  }).catch(function() {
+    listEl.innerHTML = '<p style="color: #e74c3c;">Could not load backups. Please try again.</p>';
+  });
+}
+
+function closeRestoreBackupModal() {
+  document.getElementById('restoreBackupModalOverlay').style.display = 'none';
+}
+
+function restoreFromBackup(id) {
+  if (!confirm('Restoring will replace all current data. Continue?')) return;
+  backupGet(id).then(function(record) {
+    if (!record || !record.data) {
+      alert('This backup could not be read.');
+      return;
+    }
+    var data = record.data;
+    var errMsg = validateImportData(data);
+    if (errMsg) {
+      alert('This backup cannot be restored: ' + errMsg);
+      return;
+    }
+    data = migrateImportData(data);
+    applyImportedData(data);
+    reRenderAfterImport();
+    closeRestoreBackupModal();
+    alert('Restore complete. Your backup has been restored.');
+  }).catch(function() {
+    alert('Could not load this backup. Please try again.');
+  });
+}
+
+function createManualBackup() {
+  backupCreate('manual').then(function() {
+    alert('Backup created. You can restore it anytime from Restore from Backup.');
+  }).catch(function() {
+    alert('Could not create backup. Please try again.');
+  });
+}
+
+function exportBackupToFile(id) {
+  backupGet(id).then(function(record) {
+    if (!record || !record.data) {
+      alert('This backup could not be read.');
+      return;
+    }
+    var payload = record.data;
+    var json = JSON.stringify(payload, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var ts = record.backupTimestamp || new Date().toISOString();
+    var d = new Date(ts);
+    var dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    var filename = 'banquetlogic-backup-' + dateStr + '.json';
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }).catch(function() {
+    alert('Could not load this backup. Please try again.');
+  });
 }
 
 function exportData() {
