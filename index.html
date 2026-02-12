@@ -902,55 +902,34 @@ function showTab(id){
 function showGenerationRules() {
   const assignmentStyle = settings.assignmentStyle || 'strict';
   
-  let rules = '📋 SCHEDULE GENERATION RULES\n';
+  let rules = '📋 How We Build Your Schedule\n';
   rules += '━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
-  rules += `Current Mode: ${assignmentStyle === 'strict' ? 'Strict Seniority' : assignmentStyle === 'balanced' ? 'Seniority + Balanced Coverage' : 'Fair Distribution'}\n\n`;
-  rules += 'RULE EXECUTION ORDER:\n\n';
-  rules += '1️⃣ HARD CONSTRAINTS (Must be met):\n';
-  rules += '   • Employee not retired\n';
-  rules += '   • Employee not sick\n';
-  rules += '   • Employee not on vacation that day\n';
-  rules += '   • Cell not locked\n';
-  rules += '   • Row not locked\n';
-  rules += '   • Employee has not reached max days/week limit\n';
-  rules += '   • 8-hour rest period since last shift\n\n';
-  rules += '2️⃣ SCORING FACTORS (Priority order):\n\n';
+  rules += 'We only assign people who are available and within your rules. ';
+  rules += 'That means we skip anyone who is sick, on vacation, or already working their max days that week. ';
+  rules += 'We never change locked shifts or locked rows—those stay exactly as you set them. ';
+  rules += 'We also make sure everyone has at least 8 hours rest between shifts.\n\n';
+  
+  rules += 'Within that, we pick who gets each shift based on your current mode:\n\n';
   
   if(assignmentStyle === 'strict') {
-    rules += '   STRICT SENIORITY MODE:\n';
-    rules += '   • Seniority ranking (DOMINANT - ×10,000)\n';
-    rules += '   • Full-time status (+1,000)\n';
-    rules += '   • AM/PM shift preference (+50)\n';
-    rules += '   • Day of week preference (±50)\n\n';
+    rules += 'Strict Seniority\n';
+    rules += 'We prioritize by seniority first. More senior staff get first choice of shifts. ';
+    rules += 'Full-time staff are preferred over part-time when it makes sense. ';
+    rules += 'We also try to match people\'s preferences for morning vs afternoon and for certain days of the week.\n\n';
   } else if(assignmentStyle === 'balanced') {
-    rules += '   BALANCED COVERAGE MODE:\n';
-    rules += '   • Full-time status (+10,000)\n';
-    rules += '   • Group balance check (FT vs PT)\n';
-    rules += '   • Seniority within group (×100)\n';
-    rules += '   • Hour balance vs expected (+500)\n';
-    rules += '   • AM/PM shift preference (+200)\n';
-    rules += '   • Day of week preference (±150)\n\n';
+    rules += 'Seniority + Balanced Coverage\n';
+    rules += 'We balance full-time and part-time coverage across the week so no one type is overused. ';
+    rules += 'Within that balance, we favor seniority and try to keep hours in line with what each person typically works. ';
+    rules += 'We also respect preferences for morning vs afternoon and for specific days.\n\n';
   } else {
-    rules += '   FAIR DISTRIBUTION MODE:\n';
-    rules += '   • Current hours worked (DOMINANT - ×1,000)\n';
-    rules += '   • AM/PM shift preference (+200)\n';
-    rules += '   • Day of week preference (±150)\n';
-    rules += '   • Full-time status (+100)\n';
-    rules += '   • Seniority (tie-breaker only - ×10)\n\n';
+    rules += 'Fair Distribution\n';
+    rules += 'We spread hours fairly so people who have worked less so far get more opportunity. ';
+    rules += 'We still respect preferences for morning vs afternoon and for certain days. ';
+    rules += 'Seniority is used only to break ties when needed.\n\n';
   }
   
-  rules += '3️⃣ ASSIGNMENT PROCESS:\n';
-  rules += '   • Calculate staff needed from event guest count\n';
-  rules += '   • Filter eligible employees (hard constraints)\n';
-  rules += '   • Score each eligible employee\n';
-  rules += '   • Sort by score (highest first)\n';
-  rules += '   • Assign top N employees to shift\n';
-  rules += '   • Record assignment reason for audit\n\n';
-  rules += '4️⃣ CONFLICT HANDLING:\n';
-  rules += '   • If insufficient eligible staff → Partial assignment\n';
-  rules += '   • If no eligible staff → Skip shift, log conflict\n';
-  rules += '   • Conflicts shown in ⚠️ Conflicts report\n\n';
-  rules += 'Click any generated shift to see WHY that employee was assigned.';
+  rules += 'If we can\'t fill a shift (e.g. not enough eligible staff), we assign who we can and note it in the Conflicts report. ';
+  rules += 'You can click any generated shift to see why that person was chosen.';
   
   alert(rules);
 }
@@ -3362,7 +3341,7 @@ function demoStep7_GenerateSchedule() {
 }
 
 function demoStep8_ShowSchedule() {
-  showDemoTip('Click any <strong>colored shift</strong> to see why that employee was assigned (seniority, preferences, rest rules). Try the 📋 Generation Rules button to see the full logic.');
+  showDemoTip('Click any <strong>colored shift</strong> to see why that employee was assigned. Try the 📋 Generation Rules button to see what we prioritize when building your schedule.');
   updateDemoStatus(8, 11, 'Your schedule — colors show shift length. Every assignment has a reason; click a shift to see why that person was chosen.');
   showTab('scheduleTab');
   displaySchedule();
