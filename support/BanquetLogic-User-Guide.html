@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BanquetLogic User Guide</title>
+  <style>
+    :root { --text: #1a1a1a; --muted: #555; --border: #ddd; --bg: #fff; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); background: var(--bg); line-height: 1.5; max-width: 800px; margin: 0 auto; padding: 24px 32px 48px; }
+    @media print {
+      body { padding: 0; max-width: 100%; }
+      .no-print { display: none !important; }
+      a { color: #1a1a1a; }
+      h2 { page-break-after: avoid; }
+      h3 { page-break-after: avoid; }
+      ul, ol { page-break-inside: avoid; }
+    }
+    h1 { font-size: 1.75rem; margin: 0 0 8px 0; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin: 0 0 24px 0; }
+    h2 { font-size: 1.25rem; margin: 28px 0 12px 0; color: #2c3e50; }
+    h3 { font-size: 1.05rem; margin: 18px 0 8px 0; font-weight: 600; }
+    p { margin: 0 0 10px 0; }
+    ul, ol { margin: 0 0 12px 0; padding-left: 24px; }
+    li { margin-bottom: 4px; }
+    .toc { margin: 20px 0 28px 0; padding: 16px 20px; background: #f8f9fa; border: 1px solid var(--border); border-radius: 8px; }
+    .toc-title { font-weight: 600; margin-bottom: 10px; font-size: 1rem; }
+    .toc a { color: #2980b9; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .toc ul { list-style: none; padding-left: 0; margin: 0; }
+    .toc li { margin-bottom: 6px; }
+    .feature-list { list-style: none; padding-left: 0; }
+    .feature-list li { margin-bottom: 10px; padding-left: 0; }
+    .feature-list strong { display: inline-block; min-width: 140px; color: #2c3e50; }
+    .print-hint { margin: 20px 0; padding: 12px 16px; background: #e8f4fc; border: 1px solid #b8d4e8; border-radius: 6px; font-size: 0.9rem; }
+    .print-hint strong { display: block; margin-bottom: 4px; }
+    code, .label { font-family: ui-monospace, monospace; font-size: 0.9em; background: #f0f0f0; padding: 1px 6px; border-radius: 4px; }
+    .section-note { font-size: 0.9rem; color: var(--muted); margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="no-print print-hint">
+    <strong>Save as PDF</strong>
+    Use your browser’s Print option (Ctrl+P / Cmd+P) and choose “Save as PDF” or “Microsoft Print to PDF” to download this guide as a PDF.
+  </div>
+
+  <h1>BanquetLogic User Guide</h1>
+  <p class="subtitle">Feature overview and how to use the app</p>
+
+  <nav class="toc" aria-label="Table of contents">
+    <div class="toc-title">Contents</div>
+    <ul>
+      <li><a href="#employees">1. Employees</a></li>
+      <li><a href="#events">2. Events</a></li>
+      <li><a href="#schedule">3. Schedule</a></li>
+      <li><a href="#audit">4. Audit Log</a></li>
+      <li><a href="#settings">5. Settings</a></li>
+      <li><a href="#support">6. Support &amp; Contact</a></li>
+      <li><a href="#general">7. General</a></li>
+    </ul>
+  </nav>
+
+  <h2 id="employees">1. Employees</h2>
+  <p>Manage staff by labor pool. Each employee belongs to one pool (e.g. Servers, Cashiers, Housemen) and has seniority within that pool. Scheduling rules and seniority apply within each pool.</p>
+
+  <h3>Labor pool selector</h3>
+  <p>At the top of the Employees tab, use the pool selector to filter the list by labor pool or view all employees.</p>
+
+  <h3>Add employee</h3>
+  <ul>
+    <li><strong>Name</strong> — Required.</li>
+    <li><strong>Labor Pool</strong> — Required. Choose the role (e.g. Servers, Cashiers, Housemen). Pools are defined in Settings → Labor Pools.</li>
+    <li><strong>FT / PT</strong> — Full-time or part-time. Used for assignment rules (e.g. balanced coverage) and reporting.</li>
+    <li><strong>Seniority</strong> — Number used for shift assignment order (lower number = higher seniority). Can be auto-filled when adding multiple people in the same pool.</li>
+    <li><strong>Email</strong> — Optional. Used when emailing schedules to employees.</li>
+    <li><strong>Max days per week</strong> — Optional cap on how many days the employee can be scheduled in a week.</li>
+  </ul>
+  <p>Click <strong>Add Employee</strong> to save. New employees appear in the table below.</p>
+
+  <h3>Employee row actions</h3>
+  <ul class="feature-list">
+    <li><strong>Vacation</strong> — Mark the employee as on vacation for the whole week (no assignments that week).</li>
+    <li><strong>Day Prefs</strong> — Set which days the employee prefers or cannot work. Used when generating schedules.</li>
+    <li><strong>Time Off</strong> — Mark specific time-off blocks. Used to avoid assigning shifts during those times.</li>
+    <li><strong>Sick</strong> — Checkbox to mark the employee as sick (excluded from assignment for that period).</li>
+    <li><strong>Info</strong> — View or edit the employee’s details (name, pool, type, seniority, email, max days, etc.).</li>
+    <li><strong>Retire</strong> — Retire the employee. They stay in the list but are no longer scheduled.</li>
+  </ul>
+
+  <h2 id="events">2. Events</h2>
+  <p>Events are the shifts you need to staff. Each event has a date, time, guest count, service type, and labor pool requirements. Staffing recommendations are based on event types and ratios set in Settings.</p>
+
+  <h3>Add event</h3>
+  <ul>
+    <li><strong>Event Name</strong> — Label for the event (e.g. “Smith Wedding”, “Conference A”).</li>
+    <li><strong>Date</strong> — Event date.</li>
+    <li><strong>Start Time / End Time</strong> — Event window. Affects recommended staff.</li>
+    <li><strong>Guests</strong> — Guest count. Used with service type to recommend server and other counts.</li>
+    <li><strong>Service</strong> — Event type (e.g. Plated Service, Buffet). Defined in Settings → Event Types; each type has a “1 server per X guests” ratio.</li>
+    <li><strong>Labor pool requirements</strong> — Which pools are needed and how many (e.g. 1 Cashier, 2 Housemen). Add or remove rows as needed.</li>
+    <li><strong>Cash Bar</strong> — When enabled, the schedule shows a non-binding cashier recommendation for this event.</li>
+    <li><strong>Staff Needed (legacy)</strong> — Optional override for total staff if you don’t rely only on pool requirements.</li>
+  </ul>
+  <p>Click <strong>Add Event</strong> to save. Events appear in the table; you can <strong>Edit</strong> or <strong>Delete</strong> from there.</p>
+
+  <h2 id="schedule">3. Schedule</h2>
+  <p>The Schedule tab shows a weekly grid. You generate assignments from events and employees, then optionally edit, lock, export, or email.</p>
+
+  <h3>View and week</h3>
+  <ul>
+    <li><strong>View</strong> — Filter the schedule by labor pool or “All Pools”. Affects only what you see on screen, not data.</li>
+    <li><strong>Previous Week / Next Week</strong> — Move between weeks.</li>
+  </ul>
+
+  <h3>Actions</h3>
+  <ul class="feature-list">
+    <li><strong>Generate</strong> — Build the schedule for the current week from events and employees using your assignment style and seniority. Fills empty slots; does not remove existing assignments unless you regenerate.</li>
+    <li><strong>Regenerate</strong> — Clear and regenerate the whole week from scratch.</li>
+    <li><strong>Unlock / Lock Schedule</strong> — When unlocked, you can click cells to assign or change employees. When locked, the grid is read-only to avoid accidental changes.</li>
+    <li><strong>Email Schedules</strong> — Send each employee their schedule for the week by email (uses the email on file).</li>
+    <li><strong>Generation Rules</strong> — Open a summary of the rules used for the last generation (assignment style, seniority, etc.).</li>
+    <li><strong>Conflicts</strong> — If shown, lists scheduling conflicts (e.g. double-booked or unavailable).</li>
+    <li><strong>Export CSV</strong> — Download the schedule as a CSV file.</li>
+    <li><strong>Apply Recommendations</strong> — Apply recommended Cashiers or Housemen for the week in seniority order. You can undo immediately after.</li>
+  </ul>
+
+  <h3>Grid</h3>
+  <p>Click a cell to assign an employee to that event or to mark time off. The app respects seniority, preferences, and availability when you generate. Below the grid, the <strong>Estimated labor cost</strong> panel shows a planning estimate by pool for the week (not payroll). You can hide or show this panel.</p>
+
+  <h2 id="audit">4. Audit Log</h2>
+  <p>The Audit Log records actions such as employee added/retired, schedule emailed, settings changed, data imported, and similar. Use the filters to search by employee or date, then <strong>Filter</strong> or <strong>Clear filter</strong>.</p>
+
+  <h2 id="settings">5. Settings</h2>
+
+  <h3>Shift Assignment Style</h3>
+  <p>Controls how shifts are assigned when you click Generate:</p>
+  <ul>
+    <li><strong>Strict Seniority</strong> — Higher seniority (lower number) always gets first choice. Preferences only when they don’t conflict with seniority.</li>
+    <li><strong>Seniority + Balanced Coverage</strong> — Seniority is prioritized but shifts are balanced across FT/PT so one group doesn’t get everything.</li>
+    <li><strong>Fair Distribution</strong> — Shifts spread as evenly as possible; seniority is only a tie-breaker when hours are equal.</li>
+  </ul>
+  <p class="section-note">Changes apply to future generations only; existing shifts are not changed.</p>
+
+  <h3>Staffing ratios (recommendations only)</h3>
+  <p>These drive suggested staff counts only; they do not force assignments.</p>
+  <ul>
+    <li><strong>Servers</strong> — Uses the “1 server per X guests” value from each Event Type. Edit in Event Types below.</li>
+    <li><strong>Cashiers</strong> — 1 cashier per X guests (e.g. 150).</li>
+    <li><strong>Housemen</strong> — Either “1 houseman per X guests” or “Flat: N per event”.</li>
+  </ul>
+
+  <h3>Labor Pools</h3>
+  <p>Create and edit pools (e.g. Servers, Cashiers, Housemen). For each pool you can set:</p>
+  <ul>
+    <li>Name, default hourly wage, whether the pool can be scheduled, and whether it appears in event requirements.</li>
+  </ul>
+  <p>Each employee is assigned to one pool. Seniority is tracked separately within each pool.</p>
+
+  <h3>Event Types</h3>
+  <p>Define event types (e.g. Plated Service, Buffet, Conference) and the “1 server per ___ guests” ratio for each. You can mark types active or inactive. Inactive types are hidden when creating events but existing events still display correctly.</p>
+
+  <h3>Data Management</h3>
+  <ul>
+    <li><strong>Export Data</strong> — Download all app data (employees, events, schedules, settings) as a JSON file.</li>
+    <li><strong>Import Data</strong> — Replace everything in the app with a previously exported JSON file.</li>
+    <li><strong>Create backup now</strong> — Create a manual backup (stored in the app).</li>
+    <li><strong>Restore from Backup</strong> — Restore from an automatic or manual backup.</li>
+  </ul>
+  <p class="section-note">Import replaces all current data. Restore uses backups saved automatically or ones you created.</p>
+
+  <h3>Admin: Clear All Data</h3>
+  <p>Resets the app to a completely fresh state: all employees, events, schedules, and audit log are removed. This cannot be undone.</p>
+
+  <h2 id="support">6. Support &amp; Contact</h2>
+  <p>Use the Support / Contact tab to send a message (bug report, feature suggestion, or question). Your message opens in your email client; only what you type is sent. No employee or schedule data is included. You can also email directly at the address shown there.</p>
+
+  <h2 id="general">7. General</h2>
+  <ul>
+    <li><strong>Print / Save PDF</strong> — In the header, use the Print dropdown to choose “All Pools” or a single pool, then click <strong>Print / Save PDF</strong>. Schedules are grouped and labeled by labor pool in the PDF.</li>
+    <li><strong>Toggle Dark Mode</strong> — Switch between light and dark theme. Your preference is remembered.</li>
+  </ul>
+
+  <p style="margin-top: 32px; font-size: 0.9rem; color: var(--muted);">BanquetLogic User Guide. Data is stored in your browser; export or back up regularly if you need to keep a copy.</p>
+
+  <script>
+    (function() {
+      if (window.location.search.indexOf('print') !== -1) window.print();
+    })();
+  </script>
+</body>
+</html>
