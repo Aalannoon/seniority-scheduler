@@ -173,6 +173,45 @@ body.light-mode .tabs button:hover {
   border-color: var(--brand-primary);
 }
 
+.employees-pool-selector {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.employees-pool-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--brand-border);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  background: var(--brand-bg-elevated);
+  color: var(--brand-text-muted);
+}
+.employees-pool-btn:hover {
+  background: #353d48;
+  color: var(--brand-text);
+}
+.employees-pool-btn-active {
+  background: var(--brand-primary);
+  color: #fff;
+  border-color: var(--brand-primary);
+}
+body.light-mode .employees-pool-btn {
+  background: #fff;
+  color: #4b5563;
+  border-color: #e5e7eb;
+}
+body.light-mode .employees-pool-btn:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+body.light-mode .employees-pool-btn-active {
+  background: var(--brand-primary);
+  color: #fff;
+  border-color: var(--brand-primary);
+}
+
 /* INPUTS */
 input, select, button {
   margin: 4px;
@@ -999,6 +1038,8 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <div id="employeesTab" class="tab">
 <h2>Employees</h2>
 
+<div id="employeesPoolSelector" class="employees-pool-selector" style="margin-bottom: 16px; display: flex; gap: 4px; flex-wrap: wrap;"></div>
+
 <div style="margin-bottom: 15px; padding: 10px; background: #2e2e3d; border-radius: 8px;">
   <h3 style="margin-top: 0;">Add Employee Manually</h3>
   <div style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;">
@@ -1070,10 +1111,10 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   </div>
 </div>
 
-<table>
+<table class="employees-table">
 <thead>
 <tr>
-  <th>Name</th><th>Pool</th><th>Type</th><th>Seniority</th><th>Email</th><th>Pref</th>
+  <th>Name</th><th>Type</th><th>Email</th><th>Pref</th>
   <th>Max Days/Wk</th><th>Vacation</th><th>Day Prefs</th><th>Time Off</th><th>Sick</th><th>Actions</th>
 </tr>
 </thead>
@@ -1655,6 +1696,45 @@ function getHousemenPoolId() {
   var p = laborPools.find(function(x) { return x.id === DEFAULT_HOUSEMEN_POOL_ID || (x.name && x.name.toLowerCase() === 'housemen'); });
   return p ? p.id : null;
 }
+function getEmployeesTabSelectedPoolId() {
+  var stored = localStorage.getItem('employeesTabSelectedPoolId');
+  if (stored && getLaborPoolById(stored)) return stored;
+  if (getLaborPoolById(DEFAULT_SERVERS_POOL_ID)) return DEFAULT_SERVERS_POOL_ID;
+  return laborPools.length ? laborPools[0].id : null;
+}
+function setEmployeesTabSelectedPoolId(poolId) {
+  if (!poolId || !getLaborPoolById(poolId)) return;
+  localStorage.setItem('employeesTabSelectedPoolId', poolId);
+}
+function renderEmployeesPoolSelector() {
+  var container = document.getElementById('employeesPoolSelector');
+  if (!container) return;
+  container.innerHTML = '';
+  var selectedId = getEmployeesTabSelectedPoolId();
+  var pools = laborPools.length ? laborPools : getDefaultLaborPools();
+  pools.forEach(function(p) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'employees-pool-btn' + (p.id === selectedId ? ' employees-pool-btn-active' : '');
+    btn.textContent = p.name || p.id;
+    btn.setAttribute('data-pool-id', p.id);
+    btn.onclick = function() {
+      setEmployeesTabSelectedPoolId(p.id);
+      renderEmployeesPoolSelector();
+      setAddFormToSelectedPool();
+      renderEmployees();
+    };
+    container.appendChild(btn);
+  });
+}
+function setAddFormToSelectedPool() {
+  var sel = document.getElementById('empLaborPool');
+  var poolId = getEmployeesTabSelectedPoolId();
+  if (sel && poolId) {
+    if (getLaborPoolById(poolId)) sel.value = poolId;
+    updateSeniorityPreFill();
+  }
+}
 function getCashierRecommendationForDate(dateStr) {
   var cashierPoolId = getCashierPoolId();
   if (!cashierPoolId) return { count: 0, names: [] };
@@ -2159,13 +2239,15 @@ function applyImportedData(data) {
 
 function reRenderAfterImport() {
   save();
+  populateLaborPoolDropdowns();
+  renderEmployeesPoolSelector();
+  setAddFormToSelectedPool();
   renderEmployees();
   renderEvents();
   displaySchedule();
   loadSettings();
   renderAuditLog();
   populateEventServiceDropdown();
-  populateLaborPoolDropdowns();
 }
 
 function handleImportFile(ev) {
@@ -2230,7 +2312,13 @@ function showTab(id){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
   document.getElementById(id).classList.add("active");
-  if(id==="employeesTab") { tabEmpBtn.classList.add("active"); populateLaborPoolDropdowns(); }
+  if(id==="employeesTab") {
+    tabEmpBtn.classList.add("active");
+    populateLaborPoolDropdowns();
+    renderEmployeesPoolSelector();
+    setAddFormToSelectedPool();
+    renderEmployees();
+  }
   if(id==="eventsTab") { tabEvBtn.classList.add("active"); populateEventServiceDropdown(); }
   if(id==="scheduleTab") { tabSchBtn.classList.add("active"); displaySchedule(); }
   if(id==="auditTab") { tabAuditBtn.classList.add("active"); renderAuditLog(); }
@@ -2833,24 +2921,23 @@ function retireEmployee(id){
 }
 
 function renderEmployees(){
-  employeesTable.innerHTML="";
-  employees.sort(function(a,b){
-    var poolA = (a.laborPoolId || '') || '';
-    var poolB = (b.laborPoolId || '') || '';
-    if (poolA !== poolB) return poolA.localeCompare(poolB);
+  var tableEl = document.getElementById('employeesTable');
+  if (!tableEl) return;
+  tableEl.innerHTML = "";
+  var selectedPoolId = getEmployeesTabSelectedPoolId();
+  var filtered = employees.filter(function(e) { return e.laborPoolId === selectedPoolId; });
+  filtered.sort(function(a, b) {
     return (getSeniorityForEmployee(a) || 999) - (getSeniorityForEmployee(b) || 999);
-  }).forEach(e=>{
+  });
+  filtered.forEach(function(e) {
     const row = document.createElement('tr');
     row.className = e.retired ? 'status-retired' : '';
     
     const maxDays = e.maxDaysPerWeek !== undefined ? e.maxDaysPerWeek : 5;
     
-    var poolName = e.laborPoolId ? (getLaborPoolById(e.laborPoolId) ? getLaborPoolById(e.laborPoolId).name : e.laborPoolId) : '-';
     row.innerHTML = `
       <td>${e.name}</td>
-      <td>${poolName}</td>
       <td>${e.type}</td>
-      <td>${e.retired ? '-' : (getSeniorityForEmployee(e) != null ? getSeniorityForEmployee(e) : '-')}</td>
       <td class="email-cell-td" data-emp-id="${e.id}" title="${e.email ? 'Click to edit' : 'Click to add email'}"></td>
       <td>${e.pref || "-"}</td>
       <td><input type="number" class="max-days-input" value="${maxDays}" min="1" max="5" placeholder="5" style="width:50px;" ${e.retired ? 'disabled' : ''}></td>
@@ -2955,12 +3042,13 @@ function renderEmployees(){
       };
     }
     
-    employeesTable.appendChild(row);
+    tableEl.appendChild(row);
   });
-  if(employees.filter(e=>!e.retired).length === 0){
+  var poolName = getLaborPoolById(selectedPoolId) ? getLaborPoolById(selectedPoolId).name : 'this pool';
+  if (filtered.length === 0) {
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = '<td colspan="11" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No employees yet. Add an employee above to get started.</td>';
-    employeesTable.appendChild(emptyRow);
+    emptyRow.innerHTML = '<td colspan="10" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No ' + poolName + ' yet. Add one above to get started.</td>';
+    tableEl.appendChild(emptyRow);
   }
 }
 
