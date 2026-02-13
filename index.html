@@ -1901,7 +1901,10 @@ var REASON_TAG_EXPLANATIONS = {
   within_max_days: 'Within allowed working days for the week.',
   full_time: 'Full-time status under current policy.',
   prefers_shift: 'Shift preference matched for this time.',
-  day_preference: 'Day preference matched.'
+  day_preference: 'Day preference matched.',
+  split_shift: 'Part of a split shift to avoid overtime (event longer than 8h shared across staff).',
+  overtime_avoidance: 'Chosen so this employee stays within regular hours; others would have gone into overtime.',
+  overtime_assignment: 'Assigned despite overtime because no other eligible employee could take it without also going into overtime.'
 };
 
 var ABSENCE_TYPES = [
@@ -1914,7 +1917,7 @@ var ABSENCE_TYPES = [
 function isFullAbsenceStatus(status) {
   return status === 'sick' || status === 'vacation' || status === 'floating_holiday' || status === 'unpaid_vacation';
 }
-var REASON_TAG_PRIORITY = ['manual_lock', 'availability', 'seniority', 'no_conflicts', 'rotation_balance', 'within_max_days', 'full_time', 'prefers_shift', 'day_preference'];
+var REASON_TAG_PRIORITY = ['manual_lock', 'split_shift', 'overtime_assignment', 'overtime_avoidance', 'availability', 'seniority', 'no_conflicts', 'rotation_balance', 'within_max_days', 'full_time', 'prefers_shift', 'day_preference'];
 let settings = JSON.parse(localStorage.getItem("settings") || JSON.stringify({
   assignmentStyle: "strict", // Default: Strict Seniority
   ratios: {
@@ -2662,29 +2665,39 @@ function getAssignmentExplanation(empId, dateStr) {
   if (lockedCells[key]) return REASON_TAG_EXPLANATIONS.manual_lock;
   const tags = assignmentReasonTags[key];
   if (!tags || !tags.length) return null;
+  var parts = [];
+  if (tags.indexOf('split_shift') !== -1) parts.push(REASON_TAG_EXPLANATIONS.split_shift);
+  if (tags.indexOf('overtime_assignment') !== -1) parts.push(REASON_TAG_EXPLANATIONS.overtime_assignment);
+  if (tags.indexOf('overtime_avoidance') !== -1) parts.push(REASON_TAG_EXPLANATIONS.overtime_avoidance);
   var ordered = [];
-  for (var i = 0; i < REASON_TAG_PRIORITY.length && ordered.length < 3; i++) {
+  for (var i = 0; i < REASON_TAG_PRIORITY.length; i++) {
     var t = REASON_TAG_PRIORITY[i];
-    if (t === 'manual_lock') continue;
+    if (['manual_lock', 'split_shift', 'overtime_assignment', 'overtime_avoidance'].indexOf(t) !== -1) continue;
     if (tags.indexOf(t) !== -1) ordered.push(t);
   }
-  if (ordered.length === 0) return 'Selected per current scheduling policy.';
-  var combined = [];
-  var usedAvailability = false;
-  var usedNoConflicts = false;
+  var usedAvailability = false, usedNoConflicts = false;
   for (var j = 0; j < ordered.length; j++) {
     var tag = ordered[j];
     if (tag === 'availability' && ordered.indexOf('no_conflicts') !== -1) {
-      if (!usedAvailability) { combined.push('Available with no scheduling conflicts this week.'); usedAvailability = true; usedNoConflicts = true; }
+      if (!usedAvailability) { parts.push('Available with no scheduling conflicts this week.'); usedAvailability = true; usedNoConflicts = true; }
       continue;
     }
-    if (tag === 'no_conflicts') { if (!usedNoConflicts) combined.push(REASON_TAG_EXPLANATIONS.no_conflicts); usedNoConflicts = true; continue; }
-    if (tag === 'availability') { if (!usedAvailability) combined.push(REASON_TAG_EXPLANATIONS.availability); usedAvailability = true; continue; }
-    combined.push(REASON_TAG_EXPLANATIONS[tag] || tag);
+    if (tag === 'no_conflicts') { if (!usedNoConflicts) parts.push(REASON_TAG_EXPLANATIONS.no_conflicts); usedNoConflicts = true; continue; }
+    if (tag === 'availability') { if (!usedAvailability) parts.push(REASON_TAG_EXPLANATIONS.availability); usedAvailability = true; continue; }
+    parts.push(REASON_TAG_EXPLANATIONS[tag] || tag);
   }
-  if (combined.length === 0) return 'Selected per current scheduling policy.';
-  if (combined.length === 1) return combined[0];
-  return combined.slice(0, 2).join(' ') + (combined.length > 2 ? ' ' + combined[2] : '');
+  if (parts.length === 0) return 'Selected per current scheduling policy.';
+  return parts.join(' ');
+}
+
+function getAssignmentReasonLabel(empId, dateStr) {
+  const key = empId + "_" + dateStr;
+  const tags = assignmentReasonTags[key];
+  if (!tags || !tags.length) return 'Why?';
+  if (tags.indexOf('split_shift') !== -1) return 'Split shift';
+  if (tags.indexOf('overtime_assignment') !== -1) return 'Overtime';
+  if (tags.indexOf('overtime_avoidance') !== -1) return 'Why?';
+  return 'Why?';
 }
 
 function showAssignmentReason(empId, dateStr) {
@@ -4902,17 +4915,15 @@ function displaySchedule(){
   weekHeader.textContent = `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
 
   // ========== DESKTOP TABLE VIEW ==========
+  // Blue column header row: built once, inserted inside first pool section (header → toolbar → content)
   const headerRow = document.createElement('tr');
   headerRow.innerHTML = '<th>🔒</th><th>Employee</th>';
-  
   days.forEach(d=>{
     const th = document.createElement('th');
     th.textContent = d.toLocaleDateString(undefined,{weekday:"short",day:"numeric"});
     headerRow.appendChild(th);
   });
-  
   headerRow.innerHTML += '<th>Total<br><small class="schedule-th-helper">Total scheduled hours</small></th><th>Days<br><small class="schedule-th-helper">Days worked this week</small></th>';
-  scheduleTable.appendChild(headerRow);
 
   var selectedPoolId = getScheduleTabSelectedPoolId();
 
@@ -4935,9 +4946,19 @@ function displaySchedule(){
     td.style.color = 'var(--brand-text-muted, #7f8c8d)';
     td.style.verticalAlign = 'top';
     if (rec.count > 0) {
-      var text = rec.count + ' cashier' + (rec.count !== 1 ? 's' : '') + ' recommended';
-      if (rec.names.length > 0) text += ': ' + rec.names.join(', ');
-      td.textContent = text;
+      var summary = rec.count + ' cashier' + (rec.count !== 1 ? 's' : '') + ' needed';
+      var span = document.createElement('span');
+      span.textContent = summary;
+      td.appendChild(span);
+      if (rec.names.length > 0) {
+        var detailsLink = document.createElement('a');
+        detailsLink.href = '#';
+        detailsLink.className = 'schedule-why-link';
+        detailsLink.textContent = ' Details';
+        detailsLink.title = 'Show recommended names';
+        detailsLink.onclick = function(e) { e.preventDefault(); e.stopPropagation(); alert('Recommended: ' + rec.names.join(', ')); };
+        td.appendChild(detailsLink);
+      }
     }
     recRow.appendChild(td);
   });
@@ -4971,9 +4992,19 @@ function displaySchedule(){
     td.style.color = 'var(--brand-text-muted, #7f8c8d)';
     td.style.verticalAlign = 'top';
     if (rec.count > 0) {
-      var text = rec.count + ' houseman' + (rec.count !== 1 ? 's' : '') + ' recommended';
-      if (rec.names.length > 0) text += ': ' + rec.names.join(', ');
-      td.textContent = text;
+      var summary = rec.count + ' houseman' + (rec.count !== 1 ? 's' : '') + ' needed';
+      var span = document.createElement('span');
+      span.textContent = summary;
+      td.appendChild(span);
+      if (rec.names.length > 0) {
+        var detailsLink = document.createElement('a');
+        detailsLink.href = '#';
+        detailsLink.className = 'schedule-why-link';
+        detailsLink.textContent = ' Details';
+        detailsLink.title = 'Show recommended names';
+        detailsLink.onclick = function(e) { e.preventDefault(); e.stopPropagation(); alert('Recommended: ' + rec.names.join(', ')); };
+        td.appendChild(detailsLink);
+      }
     }
     housemenRecRow.appendChild(td);
   });
@@ -5084,10 +5115,12 @@ function displaySchedule(){
             cell.title = (cell.title || '') + ' Less than 8 hours rest from another shift.';
           }
           var overrideInd = edit.seniorityOverride ? ' <span class="override-indicator" title="Seniority override' + (edit.overrideReason ? ': ' + edit.overrideReason : '') + '">&#9888;</span>' : '';
-          cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small>${overrideInd}<br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
+          var reasonLabel = typeof getAssignmentReasonLabel === 'function' ? getAssignmentReasonLabel(emp.id, dateStr) : 'Why?';
+          cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small>${overrideInd}<br><a href="#" class="schedule-why-link" title="Explain assignment">${reasonLabel}</a>`;
         } else {
           var overrideInd = edit.seniorityOverride ? ' <span class="override-indicator" title="Seniority override' + (edit.overrideReason ? ': ' + edit.overrideReason : '') + '">&#9888;</span>' : '';
-          cell.innerHTML = `${h}h<br>${overrideInd}<a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
+          var reasonLabel = typeof getAssignmentReasonLabel === 'function' ? getAssignmentReasonLabel(emp.id, dateStr) : 'Why?';
+          cell.innerHTML = `${h}h<br>${overrideInd}<a href="#" class="schedule-why-link" title="Explain assignment">${reasonLabel}</a>`;
         }
         var whyLink = cell.querySelector('.schedule-why-link');
         if (whyLink) {
@@ -5129,11 +5162,23 @@ function displaySchedule(){
   }
 
   if (selectedPoolId) {
+    var pool = laborPools.find(function(p) { return p.id === selectedPoolId; });
     var singlePoolEmps = employees.filter(function(e) { return !e.retired && e.laborPoolId === selectedPoolId; });
     singlePoolEmps.sort(function(a, b) { return (getSeniorityForEmployee(a) || 999) - (getSeniorityForEmployee(b) || 999); });
+    if (pool) {
+      var sectionTr = document.createElement('tr');
+      sectionTr.className = 'schedule-pool-section-header';
+      var sectionTd = document.createElement('td');
+      sectionTd.setAttribute('colspan', '11');
+      sectionTd.textContent = pool.name || pool.id;
+      sectionTr.appendChild(sectionTd);
+      scheduleTable.appendChild(sectionTr);
+    }
+    scheduleTable.appendChild(headerRow);
     singlePoolEmps.forEach(function(emp) { appendEmployeeRow(emp); });
   } else {
     var poolsOrder = getPoolsInPrintOrder();
+    var firstPool = true;
     poolsOrder.forEach(function(pool) {
       var poolEmps = employees.filter(function(e) { return !e.retired && e.laborPoolId === pool.id; });
       poolEmps.sort(function(a, b) { return (getSeniorityForEmployee(a) || 999) - (getSeniorityForEmployee(b) || 999); });
@@ -5145,6 +5190,10 @@ function displaySchedule(){
         sectionTd.textContent = pool.name || pool.id;
         sectionTr.appendChild(sectionTd);
         scheduleTable.appendChild(sectionTr);
+        if (firstPool) {
+          scheduleTable.appendChild(headerRow);
+          firstPool = false;
+        }
       }
       poolEmps.forEach(function(emp) { appendEmployeeRow(emp); });
     });
@@ -5383,6 +5432,9 @@ function assignEmployeesToWeek(days) {
         reasons.push('Rest period between shifts respected.');
         assignmentReasons[key] = reasons;
         var tags = ['availability', 'no_conflicts', 'within_max_days', 'seniority'];
+        if (assignmentDetails[dateStr] && assignmentDetails[dateStr][chosen.id]) tags.push('split_shift');
+        if (wouldAvoidOT.length > 0 && (hoursToday(chosen.id) || 0) + slotHours <= REGULAR_HOURS_MAX) tags.push('overtime_avoidance');
+        if ((hoursToday(chosen.id) || 0) + slotHours > REGULAR_HOURS_MAX) tags.push('overtime_assignment');
         if (chosen.type === 'FT') tags.push('full_time');
         if ((chosen.pref === 'AM' && isEarliestShift) || (chosen.pref === 'PM' && isLatestShift)) tags.push('prefers_shift');
         if (chosen.dayPreferences && chosen.dayPreferences[d.getDay()] === true) tags.push('day_preference');
