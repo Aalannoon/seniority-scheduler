@@ -5408,19 +5408,41 @@ function assignEmployeesToWeek(days) {
     return false;
   }
   
+  function preferenceMatchScore(emp, slotStart) {
+    var startMinutes = slotStart.getHours() * 60 + slotStart.getMinutes();
+    var noon = 12 * 60;
+    if (emp.pref === 'AM') return startMinutes <= noon ? 2 : -2;
+    if (emp.pref === 'PM') return startMinutes >= noon ? 2 : -2;
+    return 0;
+  }
+  
   weekSlots.forEach(function(item) {
     if (item.assignedTo !== null) return;
     var slotHours = item.slot.hours;
+    var slotStart = item.slot.start;
     var dateStr = item.dateStr;
-    var chosen = null;
+    var eligible = [];
     for (var ei = 0; ei < employeesBySeniority.length; ei++) {
       var emp = employeesBySeniority[ei];
       if ((employeeTotalHours[emp.id] || 0) >= TARGET_WEEKLY_HOURS) continue;
       if (!isEligibleForSlot(emp, item)) continue;
       if (wouldBreakSeniorityOrdering(emp, slotHours)) continue;
-      chosen = emp;
-      break;
+      eligible.push(emp);
     }
+    if (eligible.length === 0) return;
+    eligible.sort(function(a, b) {
+      var aSr = a.seniority != null ? a.seniority : 99;
+      var bSr = b.seniority != null ? b.seniority : 99;
+      if (aSr !== bSr) return aSr - bSr;
+      var aHours = employeeTotalHours[a.id] || 0;
+      var bHours = employeeTotalHours[b.id] || 0;
+      if (aHours !== bHours) return aHours - bHours;
+      var aPref = preferenceMatchScore(a, slotStart);
+      var bPref = preferenceMatchScore(b, slotStart);
+      if (aPref !== bPref) return bPref - aPref;
+      return (a.id || '').localeCompare(b.id || '');
+    });
+    var chosen = eligible[0];
     if (!chosen) return;
     item.assignedTo = chosen.id;
     var emp = chosen;
