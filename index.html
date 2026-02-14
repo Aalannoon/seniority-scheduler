@@ -2151,15 +2151,24 @@ function isEventTypeUsedByEvents(type) {
 let editingEventId = null;
 let currentWeekOffset = 0;
 
-// Initialize day preferences for existing employees (backward compatibility)
-employees.forEach(emp => {
-  if(!emp.dayPreferences) {
-    emp.dayPreferences = {
-      // 0=Sunday, 1=Monday, etc.
-      // null = no preference, true = prefers to work, false = prefers off
-      0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null
-    };
+// Initialize day preferences for existing employees (backward compatibility).
+// Day preferences use Monday-based index: 0=Monday ... 6=Sunday (see getMondayBasedIndex).
+function ensureDayPreferencesMondayBased(emp) {
+  if (!emp.dayPreferences) {
+    emp.dayPreferences = { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null };
+    return;
   }
+  if (emp._dayPrefsMondayBased) return;
+  var old = emp.dayPreferences;
+  var next = {};
+  for (var k = 0; k <= 6; k++) {
+    next[(k + 6) % 7] = old[k] !== undefined ? old[k] : null;
+  }
+  emp.dayPreferences = next;
+  emp._dayPrefsMondayBased = true;
+}
+employees.forEach(emp => {
+  ensureDayPreferencesMondayBased(emp);
   if(emp.maxDaysPerWeek === undefined) {
     emp.maxDaysPerWeek = 5; // Default to 5 days per week
   }
@@ -2496,9 +2505,7 @@ function ensureEmployeeDefaults(list) {
     if (!emp.laborPoolId) emp.laborPoolId = defaultPoolId || (laborPools[0] ? laborPools[0].id : null);
     if (!emp.seniorityByPool) emp.seniorityByPool = {};
     if (emp.seniority != null && emp.laborPoolId && emp.seniorityByPool[emp.laborPoolId] === undefined) emp.seniorityByPool[emp.laborPoolId] = emp.seniority;
-    if (!emp.dayPreferences) {
-      emp.dayPreferences = { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null };
-    }
+    ensureDayPreferencesMondayBased(emp);
     if (emp.maxDaysPerWeek === undefined) emp.maxDaysPerWeek = 5;
   });
 }
@@ -3465,16 +3472,11 @@ function openVacationPicker(empId) {
 function openDayPreferences(empId) {
   const emp = employees.find(e => e.id === empId);
   
-  // Initialize if not exists
-  if(!emp.dayPreferences) {
-    emp.dayPreferences = {
-      0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null
-    };
-  }
+  ensureDayPreferencesMondayBased(emp);
   
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  // dayPreferences use Monday-based index: 0=Monday ... 6=Sunday (DAY_NAMES_MONDAY_BASED)
+  var dayNames = DAY_NAMES_MONDAY_BASED;
   
-  // Build dialog
   let dialog = `Set weekly day preferences for ${emp.name}\n\n`;
   dialog += `These are PREFERENCES only - employee can still be scheduled\n`;
   dialog += `on any day if needed to maximize hours.\n\n`;
@@ -3482,22 +3484,21 @@ function openDayPreferences(empId) {
   dialog += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
   
   dayNames.forEach((name, index) => {
-    const pref = emp.dayPreferences[index];
-    let prefText = '(no preference)';
-    if(pref === true) prefText = '✓ PREFERS to work';
-    if(pref === false) prefText = '✗ PREFERS OFF';
-    
-    dialog += `${index}. ${name.padEnd(10)} ${prefText}\n`;
+    var pref = emp.dayPreferences[index];
+    var prefText = '(no preference)';
+    if (pref === true) prefText = '✓ PREFERS to work';
+    if (pref === false) prefText = '✗ PREFERS OFF';
+    dialog += index + '. ' + name.padEnd(10) + ' ' + prefText + '\n';
   });
   
   dialog += `━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-  dialog += `To set preferences, enter day numbers:\n\n`;
+  dialog += `To set preferences, enter day numbers (0=Mon ... 6=Sun):\n\n`;
   dialog += `PREFERS TO WORK: Enter numbers with '+'\n`;
-  dialog += `  Example: +1,2,5 (prefers Mon, Tue, Fri)\n\n`;
+  dialog += `  Example: +0,1,4 (prefers Mon, Tue, Fri)\n\n`;
   dialog += `PREFERS OFF: Enter numbers with '-'\n`;
-  dialog += `  Example: -0,6 (prefers off Sun, Sat)\n\n`;
+  dialog += `  Example: -5,6 (prefers off Sat, Sun)\n\n`;
   dialog += `BOTH: Separate with semicolon\n`;
-  dialog += `  Example: +1,2,3,4,5;-0,6\n`;
+  dialog += `  Example: +0,1,2,3,4;-5,6\n`;
   dialog += `  (prefers to work weekdays, off weekends)\n\n`;
   dialog += `CLEAR ALL: Enter "clear"\n`;
   
@@ -3540,28 +3541,17 @@ function openDayPreferences(empId) {
     }
   });
   
-  if(prefersWork.length === 0 && prefersOff.length === 0) {
-    alert('Format needs review. Use:\n+1,2,3 (prefers work)\n-0,6 (prefers off)\n+1,2,3,4,5;-0,6 (both)');
+  if (prefersWork.length === 0 && prefersOff.length === 0) {
+    alert('Format needs review. Use:\n+0,1,4 (prefers Mon, Tue, Fri)\n-5,6 (prefers off Sat, Sun)\n+0,1,2,3,4;-5,6 (both)');
     return;
   }
   
-  // Clear all first
-  emp.dayPreferences = {
-    0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null
-  };
+  emp.dayPreferences = { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null };
+  prefersWork.forEach(function(day) { emp.dayPreferences[day] = true; });
+  prefersOff.forEach(function(day) { emp.dayPreferences[day] = false; });
   
-  // Set preferences
-  prefersWork.forEach(day => {
-    emp.dayPreferences[day] = true;
-  });
-  
-  prefersOff.forEach(day => {
-    emp.dayPreferences[day] = false;
-  });
-  
-  // Build audit message
-  const workDays = prefersWork.map(d => dayNames[d]).join(', ');
-  const offDays = prefersOff.map(d => dayNames[d]).join(', ');
+  var workDays = prefersWork.map(function(d) { return dayNames[d]; }).join(', ');
+  var offDays = prefersOff.map(function(d) { return dayNames[d]; }).join(', ');
   let auditMsg = '';
   if(workDays) auditMsg += `Work: ${workDays}`;
   if(offDays) auditMsg += `${auditMsg ? '; ' : ''}Off: ${offDays}`;
@@ -4000,18 +3990,21 @@ function deleteEvent(id){
 /* HELPER FUNCTIONS */
 const iso=d=>d.toISOString().split("T")[0];
 
-// JavaScript getDay(): 0=Sunday, 1=Monday, ..., 6=Saturday.
-// Monday-based index (0=Monday, 6=Sunday) for week-boundary and day-order logic:
-function mondayBasedDayIndex(jsDay) {
+/** Single source of truth for weekday indexing. 0=Monday ... 6=Sunday. Use everywhere. */
+function getMondayBasedIndex(date) {
+  var jsDay = date.getDay();
   return (jsDay + 6) % 7;
 }
 
+/** Day names in Monday-based order (index 0 = Monday). Use with getMondayBasedIndex(date). */
+var DAY_NAMES_MONDAY_BASED = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 function getWeekStart(){
-  const d=new Date();
-  d.setDate(d.getDate()+currentWeekOffset*7);
-  const mondayIndex = mondayBasedDayIndex(d.getDay());
-  d.setDate(d.getDate()-mondayIndex);
-  d.setHours(0,0,0,0);
+  var d = new Date();
+  d.setDate(d.getDate() + currentWeekOffset * 7);
+  var mondayIndex = getMondayBasedIndex(d);
+  d.setDate(d.getDate() - mondayIndex);
+  d.setHours(0, 0, 0, 0);
   return d;
 }
 
@@ -4951,7 +4944,9 @@ function displaySchedule(){
       if (lastOvertimeSuggestions && lastOvertimeSuggestions.length > 0) {
         otBanner.style.display = 'block';
         var lines = lastOvertimeSuggestions.map(function(s) {
-          return (s.eventName || 'Event') + ' on ' + new Date(s.dateStr).toLocaleDateString(undefined, {weekday: 'short'}) + (s.empName ? ': ' + s.empName : '');
+          var d = new Date(s.dateStr + 'T12:00:00');
+          var dayName = DAY_NAMES_MONDAY_BASED[getMondayBasedIndex(d)];
+          return (s.eventName || 'Event') + ' on ' + dayName + (s.empName ? ': ' + s.empName : '');
         });
         otBannerText.textContent = lines.join('; ');
       } else {
@@ -5505,7 +5500,7 @@ function assignEmployeesToWeek(days) {
       var dateStrOne = one.dateStr;
       var ev = one.ev, slot = one.slot, s = one.s, t = one.t;
       var d = one.d;
-      var dayOfWeek = d.getDay();
+      var dayOfWeek = getMondayBasedIndex(d);
       employeeHoursToday[dateStrOne][emp.id] = (employeeHoursToday[dateStrOne][emp.id] || 0) + slotHoursOne;
       employeeShiftHistory[emp.id] = { date: dateStrOne, endTime: slotEndOne };
       employeeTotalHours[emp.id] = (employeeTotalHours[emp.id] || 0) + slotHoursOne;
