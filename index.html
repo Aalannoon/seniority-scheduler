@@ -363,6 +363,9 @@ td[onclick], td.clickable { cursor:pointer; }
 td[onclick]:hover, td.clickable:hover { outline:2px dashed #4e9af1; }
 /* Valid drop target when dragging a shift */
 #scheduleTable td.schedule-drop-zone { outline: 3px solid #27ae60; background: rgba(39, 174, 96, 0.2) !important; }
+/* Shift blocks: grab cursor; when dragging, grabbing cursor */
+#scheduleTable td[draggable="true"] { cursor: grab; }
+body.dragging-shift { cursor: grabbing; }
 .schedule-why-link { font-size: 11px; color: var(--brand-text-muted); text-decoration: none; }
 .schedule-why-link:hover { color: var(--brand-primary); text-decoration: underline; }
 
@@ -1607,6 +1610,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   Schedule accuracy depends on employee preferences and availability. Review settings for best results.
 </div>
 <p class="schedule-grid-helper">Click a cell to assign an employee to an event or mark time off</p>
+<p class="schedule-drag-tip" style="margin: 4px 0 8px 0; font-size: 12px; color: var(--brand-text-muted, #95a5a6);">Tip: You can drag and drop shifts to move or swap them.</p>
 <div class="schedule-container">
   <table id="scheduleTable"></table>
 </div>
@@ -5273,12 +5277,13 @@ function displaySchedule(){
             cell.setAttribute('data-shift-id', key);
             cell.setAttribute('data-assigned-employee-id', emp.id);
             cell.ondragstart = function(e) {
+              document.body.classList.add('dragging-shift');
               draggedShiftKey = key;
               draggedShiftDateStr = dateStr;
               e.dataTransfer.setData('text/plain', key);
               e.dataTransfer.effectAllowed = 'move';
             };
-            cell.ondragend = function() { draggedShiftKey = null; draggedShiftDateStr = null; };
+            cell.ondragend = function() { document.body.classList.remove('dragging-shift'); draggedShiftKey = null; draggedShiftDateStr = null; };
           }
           cell.onclick = function(ev) { if (!ev.target.closest('a')) editScheduleCell(emp.id, dateStr); };
           row.appendChild(cell);
@@ -5314,12 +5319,13 @@ function displaySchedule(){
           cell.setAttribute('data-shift-id', key);
           cell.setAttribute('data-assigned-employee-id', emp.id);
           cell.ondragstart = function(e) {
+            document.body.classList.add('dragging-shift');
             draggedShiftKey = key;
             draggedShiftDateStr = dateStr;
             e.dataTransfer.setData('text/plain', key);
             e.dataTransfer.effectAllowed = 'move';
           };
-          cell.ondragend = function() { draggedShiftKey = null; draggedShiftDateStr = null; };
+          cell.ondragend = function() { document.body.classList.remove('dragging-shift'); draggedShiftKey = null; draggedShiftDateStr = null; };
         }
         
         if(isLocked || lockedRows[emp.id]) {
