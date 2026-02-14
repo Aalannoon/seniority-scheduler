@@ -5495,6 +5495,31 @@ function assignEmployeesToWeek(days) {
     employeeHoursToday[dateStr] = {};
     assignments[dateStr] = [];
   });
+  employees.filter(function(e) { return !e.retired; }).forEach(function(e) {
+    days.forEach(function(d) {
+      var dateStr = iso(d);
+      var key = e.id + "_" + dateStr;
+      if (!lockedCells[key] || !manualEdits[key]) return;
+      var ed = manualEdits[key];
+      if (isFullAbsenceStatus(ed.status)) return;
+      if (!ed.hours && !ed.start) return;
+      var hours = ed.hours;
+      if (hours == null && ed.start && ed.end) {
+        var es = new Date(dateStr + 'T' + ed.start), en = new Date(dateStr + 'T' + ed.end);
+        hours = (en - es) / 3600000;
+      }
+      if (!hours) return;
+      var startTime = ed.start ? new Date(dateStr + 'T' + ed.start) : new Date(dateStr + 'T00:00');
+      var endTime = ed.end ? new Date(dateStr + 'T' + ed.end) : addHoursToDate(new Date(startTime.getTime()), hours);
+      assignments[dateStr].push(e.id);
+      if (!assignmentDetails[dateStr]) assignmentDetails[dateStr] = {};
+      assignmentDetails[dateStr][e.id] = { hours: hours, start: startTime, end: endTime };
+      employeeHoursToday[dateStr][e.id] = hours;
+      employeeTotalHours[e.id] = (employeeTotalHours[e.id] || 0) + hours;
+      employeeWorkDays[e.id] = (employeeWorkDays[e.id] || 0) + 1;
+      employeeShiftHistory[e.id] = { date: dateStr, startTime: startTime, endTime: endTime };
+    });
+  });
   var cashierPoolId = getCashierPoolId();
   var housemenPoolId = getHousemenPoolId();
   var serverPool = employees.filter(function(e) {
@@ -5609,7 +5634,24 @@ function assignEmployeesToWeek(days) {
     return a.slot.start.getTime() - b.slot.start.getTime();
   });
   weekSlots.sort(function(a, b) { return a.slot.start.getTime() - b.slot.start.getTime(); });
-  
+  var lockedCountByDate = {};
+  days.forEach(function(d) {
+    var dateStr = iso(d);
+    lockedCountByDate[dateStr] = 0;
+    employees.filter(function(emp) { return !emp.retired; }).forEach(function(emp) {
+      var key = emp.id + '_' + dateStr;
+      if (lockedCells[key] && manualEdits[key] && !isFullAbsenceStatus(manualEdits[key].status) && (manualEdits[key].hours || manualEdits[key].start)) lockedCountByDate[dateStr]++;
+    });
+  });
+  for (var dateStr in lockedCountByDate) {
+    var toRemove = lockedCountByDate[dateStr];
+    for (var i = weekSlots.length - 1; i >= 0 && toRemove > 0; i--) {
+      if (weekSlots[i].dateStr === dateStr) {
+        weekSlots.splice(i, 1);
+        toRemove--;
+      }
+    }
+  }
   var assignmentStyle = settings.assignmentStyle || 'strict';
   var noonMinutes = 12 * 60;
   
