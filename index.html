@@ -5470,7 +5470,7 @@ function assignEmployeesToWeek(days) {
     if (assignments[dateStr] && assignments[dateStr].indexOf(emp.id) !== -1) return false;
     var empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
     if (employeeWorkDays[emp.id] >= empMaxDays) return false;
-    var gapCheck = canWorkShift(emp.id, dateStr, slotStart, employeeShiftHistory);
+    var gapCheck = canWorkShift(emp.id, dateStr, slotStart, item.slot.end, employeeShiftHistory);
     return gapCheck.allowed;
   }
   
@@ -5505,7 +5505,7 @@ function assignEmployeesToWeek(days) {
     var d = one.d;
     var dayOfWeek = typeof getMondayBasedIndex === 'function' ? getMondayBasedIndex(d) : d.getDay();
     employeeHoursToday[dateStrOne][emp.id] = (employeeHoursToday[dateStrOne][emp.id] || 0) + slotHoursOne;
-    employeeShiftHistory[emp.id] = { date: dateStrOne, endTime: slotEndOne };
+    employeeShiftHistory[emp.id] = { date: dateStrOne, startTime: slotStartOne, endTime: slotEndOne };
     employeeTotalHours[emp.id] = (employeeTotalHours[emp.id] || 0) + slotHoursOne;
     employeeWorkDays[emp.id] = (employeeWorkDays[emp.id] || 0) + 1;
     if (!assignmentDetails[dateStrOne]) assignmentDetails[dateStrOne] = {};
@@ -5640,7 +5640,8 @@ function assignEmployeesToWeek(days) {
     if (!violation) break;
     var H = violation.higher, L = violation.lower;
     var moved = false;
-    for (var si = 0; si < weekSlots.length && !moved; si++) {
+    var candidates = [];
+    for (var si = 0; si < weekSlots.length; si++) {
       var item = weekSlots[si];
       if (item.assignedTo !== L.id) continue;
       var dateStr = item.dateStr, slot = item.slot, ev = item.ev, s = item.s, t = item.t;
@@ -5649,7 +5650,21 @@ function assignEmployeesToWeek(days) {
       item.assignedTo = null;
       var hEligible = isEligibleForSlot(H, item);
       item.assignedTo = wasAssigned;
-      if (!hEligible) continue;
+      if (hEligible) candidates.push({ index: si, item: item });
+    }
+    if (candidates.length > 0) {
+      candidates.sort(function(a, b) {
+        var prefA = preferenceMatchScore(H, a.item.slot.start);
+        var prefB = preferenceMatchScore(H, b.item.slot.start);
+        if (prefA !== prefB) return prefB - prefA;
+        if (H.pref === 'AM') return a.item.slot.start.getTime() - b.item.slot.start.getTime();
+        if (H.pref === 'PM') return b.item.slot.start.getTime() - a.item.slot.start.getTime();
+        return 0;
+      });
+      var best = candidates[0];
+      var item = best.item;
+      var dateStr = item.dateStr, slot = item.slot, ev = item.ev, s = item.s, t = item.t;
+      var slotHours = slot.hours, slotStart = slot.start, slotEnd = slot.end;
       item.assignedTo = H.id;
       if (assignments[dateStr]) {
         var idx = assignments[dateStr].indexOf(L.id);
@@ -5665,14 +5680,14 @@ function assignEmployeesToWeek(days) {
       employeeHoursToday[dateStr][H.id] = (employeeHoursToday[dateStr][H.id] || 0) + slotHours;
       employeeWorkDays[L.id] = (employeeWorkDays[L.id] || 0) - 1;
       employeeWorkDays[H.id] = (employeeWorkDays[H.id] || 0) + 1;
-      employeeShiftHistory[H.id] = { date: dateStr, endTime: slotEnd };
+      employeeShiftHistory[H.id] = { date: dateStr, startTime: slotStart, endTime: slotEnd };
       var lLast = null;
       weekSlots.forEach(function(it) {
         if (it.assignedTo === L.id && it.dateStr !== dateStr) {
-          if (!lLast || it.dateStr > lLast.dateStr) lLast = { dateStr: it.dateStr, endTime: it.slot.end };
+          if (!lLast || it.dateStr > lLast.dateStr) lLast = { dateStr: it.dateStr, startTime: it.slot.start, endTime: it.slot.end };
         }
       });
-      employeeShiftHistory[L.id] = lLast ? { date: lLast.dateStr, endTime: lLast.endTime } : null;
+      employeeShiftHistory[L.id] = lLast ? { date: lLast.dateStr, startTime: lLast.startTime, endTime: lLast.endTime } : null;
       var keyL = L.id + "_" + dateStr, keyH = H.id + "_" + dateStr;
       delete assignmentReasonCodes[keyL]; delete assignmentReasons[keyL]; delete assignmentReasonTags[keyL];
       assignmentReasonCodes[keyH] = 'SENIORITY_PRIORITY';
@@ -5690,7 +5705,7 @@ function assignEmployeesToWeek(days) {
   return { assignments: assignments, assignmentDetails: assignmentDetails, otFlaggedAssignments: otFlaggedAssignments };
 }
 
-function canWorkShift(empId, currentDate, shiftStart, shiftHistory) {
+function canWorkShift(empId, currentDate, shiftStart, shiftEnd, shiftHistory) {
   const lastShift = shiftHistory[empId];
   
   if(!lastShift) return {allowed: true};
@@ -5699,16 +5714,28 @@ function canWorkShift(empId, currentDate, shiftStart, shiftHistory) {
   const currentDateObj = new Date(currentDate);
   const daysDiff = Math.floor((currentDateObj - lastDate) / (1000 * 60 * 60 * 24));
   
-  if(daysDiff > 1) return {allowed: true};
+  if(Math.abs(daysDiff) > 1) return {allowed: true};
   
-  if(daysDiff === 1) {
+  if(Math.abs(daysDiff) === 1) {
     const lastEnd = lastShift.endTime;
+    const lastStart = lastShift.startTime;
     const currentStart = shiftStart;
+    const currentEnd = shiftEnd;
+    if (daysDiff === -1 && !lastStart) return { allowed: true };
     
     const lastEndMinutes = lastEnd.getHours() * 60 + lastEnd.getMinutes();
+    const lastStartMinutes = lastStart ? (lastStart.getHours() * 60 + lastStart.getMinutes()) : 0;
     const currentStartMinutes = currentStart.getHours() * 60 + currentStart.getMinutes();
+    const currentEndMinutes = currentEnd ? (currentEnd.getHours() * 60 + currentEnd.getMinutes()) : currentStartMinutes;
     
-    const totalMinutesBetween = (1440 - lastEndMinutes) + currentStartMinutes;
+    var totalMinutesBetween;
+    if(daysDiff === 1) {
+      // Current day is AFTER last day: gap from last shift end to current shift start
+      totalMinutesBetween = (1440 - lastEndMinutes) + currentStartMinutes;
+    } else {
+      // Current day is BEFORE last day (daysDiff === -1): gap from current shift end to next day's shift start
+      totalMinutesBetween = (1440 - currentEndMinutes) + lastStartMinutes;
+    }
     
     if(totalMinutesBetween >= 480) {
       return {allowed: true};
