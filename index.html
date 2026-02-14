@@ -5398,6 +5398,17 @@ function assignEmployeesToWeek(days) {
     var empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
     while (employeeWorkDays[emp.id] < empMaxDays && (employeeTotalHours[emp.id] || 0) < TARGET_WEEKLY_HOURS) {
       var eligible = weekSlots.filter(function(item) { return isEligibleForSlot(emp, item); });
+      var empSr = emp.seniority != null ? emp.seniority : 99;
+      eligible = eligible.filter(function(item) {
+        var blockedByHigher = employeesBySeniority.some(function(h) {
+          if (h.id === emp.id) return false;
+          var hSr = h.seniority != null ? h.seniority : 99;
+          if (hSr >= empSr) return false;
+          if ((employeeTotalHours[h.id] || 0) >= TARGET_WEEKLY_HOURS) return false;
+          return isEligibleForSlot(h, item);
+        });
+        return !blockedByHigher;
+      });
       if (eligible.length === 0) break;
       var preferEarly = emp.pref === 'AM';
       eligible.sort(function(a, b) {
