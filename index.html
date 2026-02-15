@@ -4211,11 +4211,12 @@ function editScheduleCell(empId, date){
     dialog += "  reassign (give this shift to another employee)\n";
   }
   dialog += "  lock\n";
+  dialog += "  unlock\n";
   dialog += "  clear\n";
   dialog += "--------------------\n\n";
   
   if(lockedCells[key]) {
-    dialog += "🔒 LOCKED\n\n";
+    dialog += "🔒 LOCKED (type unlock to unlock)\n\n";
   }
   
   if(currentEdit) {
@@ -4244,17 +4245,28 @@ function editScheduleCell(empId, date){
     toggleLock(empId, date);
     return;
   }
+  if(trimmed === 'unlock') {
+    if (lockedCells[key]) {
+      delete lockedCells[key];
+      addAuditEntry('Cell Unlocked', empId, date, 'Locked', 'Unlocked');
+      save();
+      displaySchedule();
+    }
+    return;
+  }
   
-  // Remove shift
+  // Remove shift or absence (clear)
   if(trimmed === 'remove' || trimmed === 'clear' || trimmed === '') {
     const oldValue = currentEdit ? JSON.stringify(currentEdit) : 'Auto-assigned';
     delete manualEdits[key];
-    if (currentEdit && currentEdit.status && typeof isFullAbsenceStatus === 'function' && isFullAbsenceStatus(currentEdit.status)) {
-      if (emp.absences && Array.isArray(emp.absences)) {
-        emp.absences = emp.absences.filter(function(a) {
-          return !(a.startDate === date && a.endDate === date && a.type === currentEdit.status);
-        });
-      }
+    // Remove any absence covering this date from emp.absences (so vacation/sick/off etc. clear even when label comes from absences only)
+    if (emp.absences && Array.isArray(emp.absences) && typeof toMidnightTime === 'function') {
+      var cellDay = toMidnightTime(date);
+      emp.absences = emp.absences.filter(function(a) {
+        var start = toMidnightTime(a.startDate);
+        var end = toMidnightTime(a.endDate);
+        return cellDay < start || cellDay > end;
+      });
     }
     var weekKey = getWeekKey(getWeekStart());
     saveWeeklyScheduleSnapshot(weekKey);
