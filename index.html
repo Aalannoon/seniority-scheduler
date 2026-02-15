@@ -2936,7 +2936,7 @@ function getSeniorityForEmployee(emp) {
 }
 
 function getNextSeniority(poolId) {
-  var inPool = employees.filter(function(e) { return e.laborPoolId === poolId; });
+  var inPool = employees.filter(function(e) { return !e.retired && e.laborPoolId === poolId; });
   if (inPool.length === 0) return 1;
   var max = Math.max.apply(null, inPool.map(function(e) { return getSeniorityForEmployee(e) || 0; }));
   return max + 1;
@@ -3207,9 +3207,14 @@ function exportEmployeeList() {
   let csv = 'Name,Type,Seniority,Preference\n';
   
   employees.filter(e => !e.retired)
-    .sort((a, b) => a.seniority - b.seniority)
+    .sort((a, b) => {
+      var sa = getSeniorityForEmployee(a) != null ? getSeniorityForEmployee(a) : 999;
+      var sb = getSeniorityForEmployee(b) != null ? getSeniorityForEmployee(b) : 999;
+      if (sa !== sb) return sa - sb;
+      return (a.laborPoolId || '').localeCompare(b.laborPoolId || '');
+    })
     .forEach(e => {
-      csv += `${e.name},${e.type},${e.seniority},${e.pref || ''}\n`;
+      csv += `${e.name},${e.type},${getSeniorityForEmployee(e) != null ? getSeniorityForEmployee(e) : ''},${e.pref || ''}\n`;
     });
   
   // Create download
@@ -3221,7 +3226,7 @@ function exportEmployeeList() {
   a.click();
   URL.revokeObjectURL(url);
   
-  alert('âœ… Employee list exported!');
+  alert('\u2713 Employee list exported!');
 }
 
 function rebalanceSeniority(){
