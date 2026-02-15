@@ -1848,7 +1848,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 
     <div class="support-doc-card" style="margin-bottom: 24px; padding: 18px 20px; background: var(--brand-bg-elevated); border: 1px solid var(--brand-border); border-radius: 10px;">
       <h3 class="support-form-title" style="margin-top: 0;">User Guide</h3>
-      <p style="margin: 0 0 12px 0; font-size: 14px; color: var(--brand-text-muted);">A complete feature guide with step-by-step instructions. Open the guide and use your browserâ€™s Print â†’ Save as PDF to download a PDF copy.</p>
+      <p style="margin: 0 0 12px 0; font-size: 14px; color: var(--brand-text-muted);">A complete feature guide with step-by-step instructions. Open the guide and use your browser's Print → Save as PDF to download a PDF copy.</p>
       <a href="support/BanquetLogic-User-Guide.html" target="_blank" rel="noopener noreferrer" class="btn-primary" style="display: inline-block; padding: 10px 18px; text-decoration: none; border-radius: 8px; font-weight: 500;">Open BanquetLogic User Guide</a>
     </div>
 
@@ -1877,7 +1877,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 
       <div class="support-field">
         <label for="supportMessage">Message <span class="required">*</span></label>
-        <textarea id="supportMessage" placeholder="Describe what happened or what youâ€™d like to see. For bugs, include steps to reproduce and your browser if possible." rows="6"></textarea>
+        <textarea id="supportMessage" placeholder="Describe what happened or what you'd like to see. For bugs, include steps to reproduce and your browser if possible." rows="6"></textarea>
         <span class="support-helper">The more detail you provide, the better we can help. Include steps to reproduce for bugs.</span>
       </div>
 
@@ -1896,7 +1896,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
         Email: <a href="mailto:Alialannoon@gmail.com">Alialannoon@gmail.com</a>
       </p>
       <p class="support-response-time">
-        We aim to respond within 1â€“2 business days.
+        We aim to respond within 1–2 business days.
       </p>
     </div>
   </div>
@@ -2264,7 +2264,7 @@ function getDataForBackup(backupType) {
   return payload;
 }
 
-/* AUTOMATIC BACKUPS (IndexedDB â€“ separate from live data) */
+/* AUTOMATIC BACKUPS (IndexedDB – separate from live data) */
 var BACKUP_DB_NAME = 'BanquetLogicBackups';
 var BACKUP_STORE = 'backups';
 var MAX_AUTO_BACKUPS = 10;
@@ -2380,7 +2380,7 @@ function formatBackupLabel(record) {
   } else {
     dateStr = 'Unknown date';
   }
-  return type + ' â€“ ' + dateStr;
+  return type + ' – ' + dateStr;
 }
 
 function openRestoreBackupModal() {
@@ -2395,7 +2395,7 @@ function openRestoreBackupModal() {
   document.addEventListener('keydown', onRestoreKey);
   overlay._modalCleanup = remove;
   var listEl = document.getElementById('restoreBackupList');
-  listEl.innerHTML = '<p style="color: var(--brand-text-muted);">Loading backupsâ€¦</p>';
+  listEl.innerHTML = '<p style="color: var(--brand-text-muted);">Loading backups…</p>';
   backupList().then(function(list) {
     if (!list.length) {
       listEl.innerHTML = '<p style="color: var(--brand-text-muted);">No backups found. Automatic backups are created when you make changes.</p>';
@@ -2722,12 +2722,12 @@ function showConflictReport() {
   });
   
   report += 'POSSIBLE SOLUTIONS:\n';
-  report += 'â€¢ Hire additional staff\n';
-  report += 'â€¢ Adjust employee max days/week limits\n';
-  report += 'â€¢ Remove vacation/sick days if not needed\n';
-  report += 'â€¢ Reduce event staffing requirements\n';
-  report += 'â€¢ For overtime slots: manually assign and approve OT\n';
-  report += 'â€¢ Manually override and assign shifts';
+  report += '• Hire additional staff\n';
+  report += '• Adjust employee max days/week limits\n';
+  report += '• Remove vacation/sick days if not needed\n';
+  report += '• Reduce event staffing requirements\n';
+  report += '• For overtime slots: manually assign and approve OT\n';
+  report += '• Manually override and assign shifts';
   
   alert(report);
 }
@@ -2774,7 +2774,7 @@ function showAssignmentReason(empId, dateStr) {
   const emp = employees.find(e => e.id === empId);
   const date = new Date(dateStr);
   const explanation = getAssignmentExplanation(empId, dateStr);
-  const title = emp ? (emp.name + ' â€“ ' + date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })) : 'Shift';
+  const title = emp ? (emp.name + ' – ' + date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })) : 'Shift';
   if (explanation) {
     alert(title + '\n\n' + explanation);
   } else {
@@ -2792,7 +2792,7 @@ function emailSchedulesToAll() {
     return d;
   });
   
-  const weekRange = `${days[0].toLocaleDateString()} â€“ ${days[6].toLocaleDateString()}`;
+  const weekRange = `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
   
   // Check for employees without email
   const activeEmployees = employees.filter(e => !e.retired);
@@ -2824,7 +2824,7 @@ function emailSchedulesToAll() {
     let warning = 'âš ï¸ WARNING: Cannot send schedules to employees without email addresses!\n\n';
     warning += 'Missing email for:\n';
     employeesWithoutEmail.forEach(name => {
-      warning += `â€¢ ${name}\n`;
+      warning += `• ${name}\n`;
     });
     warning += '\nPlease add or edit email addresses in the Employees tab (click the email cell).\n\n';
     
@@ -2875,13 +2875,13 @@ function emailSchedulesToAll() {
     message += `Please send each email from your email client.\n\n`;
     message += `Employees receiving schedules:\n`;
     employeesWithSchedule.forEach(emp => {
-      message += `â€¢ ${emp.name} (${emp.email})\n`;
+      message += `• ${emp.name} (${emp.email})\n`;
     });
     
     if(employeesWithoutEmail.length > 0) {
       message += `\nâš ï¸ Skipped (no email):\n`;
       employeesWithoutEmail.forEach(name => {
-        message += `â€¢ ${name}\n`;
+        message += `• ${name}\n`;
       });
     }
     
@@ -2916,7 +2916,7 @@ function generateEmployeeScheduleEmail(emp, days) {
         email += `${dayName}\n`;
         email += `  Hours: ${hours}h\n`;
         if(edit.start && edit.end) {
-          email += `  Time: ${edit.start} â€“ ${edit.end}\n`;
+          email += `  Time: ${edit.start} – ${edit.end}\n`;
         }
         
         // Find event for this day
@@ -3059,14 +3059,14 @@ Jane Smith  PT    2    PM
 Bob Johnson FT    3
 
 FIELDS:
-â€¢ Name (required)
-â€¢ Type: FT or PT (required)
-â€¢ Seniority: number (required)
-â€¢ Preference: AM, PM, or blank (optional)
+• Name (required)
+• Type: FT or PT (required)
+• Seniority: number (required)
+• Preference: AM, PM, or blank (optional)
 
 IMPORT MODES:
-â€¢ Replace: Removes all existing employees
-â€¢ Merge: Adds to existing employees, rebalances seniority
+• Replace: Removes all existing employees
+• Merge: Adds to existing employees, rebalances seniority
 
 TIP: Export your current list first as a backup!
   `;
@@ -3413,7 +3413,7 @@ function openVacationPicker(empId) {
   
   // Build dialog
   let dialog = `Set vacation days for ${emp.name}\n`;
-  dialog += `Current week: ${days[0].toLocaleDateString()} â€“ ${days[6].toLocaleDateString()}\n\n`;
+  dialog += `Current week: ${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}\n\n`;
   dialog += `Select days to mark as VACATION:\n`;
   dialog += `â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”\n`;
   
@@ -3477,7 +3477,7 @@ function openVacationPicker(empId) {
   const selectedDays = trimmed.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 7);
   
   if (selectedDays.length === 0) {
-    alert('Check required. Please enter day numbers (1â€“7), "all", or "clear".');
+    alert('Check required. Please enter day numbers (1–7), "all", or "clear".');
     return;
   }
   
@@ -3798,11 +3798,11 @@ function saveEmployeeEdit() {
   emp.sick = sickEl.checked;
   
   var changes = [];
-  if (oldType !== emp.type) changes.push('type ' + oldType + ' â†’ ' + emp.type);
-  if (oldPoolId !== emp.laborPoolId) changes.push('labor pool â†’ ' + (getLaborPoolById(emp.laborPoolId) ? getLaborPoolById(emp.laborPoolId).name : emp.laborPoolId));
-  if (oldPref !== (emp.pref || '')) changes.push('preference ' + (oldPref || 'none') + ' â†’ ' + (emp.pref || 'none'));
-  if (oldSeniority !== emp.seniority) changes.push('seniority ' + oldSeniority + ' â†’ ' + emp.seniority);
-  if (oldSick !== emp.sick) changes.push('sick ' + (oldSick ? 'yes' : 'no') + ' â†’ ' + (emp.sick ? 'yes' : 'no'));
+  if (oldType !== emp.type) changes.push('type ' + oldType + ' → ' + emp.type);
+  if (oldPoolId !== emp.laborPoolId) changes.push('labor pool → ' + (getLaborPoolById(emp.laborPoolId) ? getLaborPoolById(emp.laborPoolId).name : emp.laborPoolId));
+  if (oldPref !== (emp.pref || '')) changes.push('preference ' + (oldPref || 'none') + ' → ' + (emp.pref || 'none'));
+  if (oldSeniority !== emp.seniority) changes.push('seniority ' + oldSeniority + ' → ' + emp.seniority);
+  if (oldSick !== emp.sick) changes.push('sick ' + (oldSick ? 'yes' : 'no') + ' → ' + (emp.sick ? 'yes' : 'no'));
   
   if (changes.length) {
     addAuditEntry('Employee Updated', emp.id, null, changes.join('; '), emp.name);
@@ -3961,7 +3961,7 @@ function renderEvents(){
     row.innerHTML = `
       <td>${ev.name}</td>
       <td>${ev.date}</td>
-      <td>${ev.start}â€“${ev.end}</td>
+      <td>${ev.start}–${ev.end}</td>
       <td>${ev.guests}</td>
       <td>${ev.eventTypeName || ev.service || ev.serviceType || ''}</td>
       <td>${staffDisplay}</td>
@@ -4039,7 +4039,7 @@ function iso(d) {
   return dateToLocalYYYYMMDD(d);
 }
 
-/** Stable week identifier: Monday of week as YYYY-MM-DD (local). Any day in Feb 9â€“15 2026 â†’ "2026-02-09". */
+/** Stable week identifier: Monday of week as YYYY-MM-DD (local). Any day in Feb 9–15 2026 → "2026-02-09". */
 function getWeekKey(date) {
   var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   var mondayIndex = getMondayBasedIndex(d);
@@ -4678,7 +4678,7 @@ function editScheduleCell(empId, date){
   delete assignmentReasonCodes[key];
   addAuditEntry('Shift Manually Edited', empId, date, oldValue, JSON.stringify(newEdit));
   
-  alert('Shift saved. Total: ' + newEdit.hours + ' hours (' + newEdit.start + 'â€“' + newEdit.end + ').');
+  alert('Shift saved. Total: ' + newEdit.hours + ' hours (' + newEdit.start + '–' + newEdit.end + ').');
   save(); 
   displaySchedule();
 }
@@ -4846,7 +4846,7 @@ function generateSchedule(){
       understaffedEvents.forEach(evt => {
         const dateObj = new Date(evt.date);
         const dateDisplay = dateObj.toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'});
-        message += `\nâ€¢ ${evt.name} (${dateDisplay})\n  Needs ${evt.shortage} more staff (${evt.assigned}/${evt.required})`;
+        message += `\n• ${evt.name} (${dateDisplay})\n  Needs ${evt.shortage} more staff (${evt.assigned}/${evt.required})`;
       });
       message += `\n\nClick "âš ï¸ Conflicts" button for detailed conflict report.\n\nYou may need to:\n- Manually assign more employees\n- Hire additional staff\n- Reduce event requirements`;
     }
@@ -5117,10 +5117,10 @@ function displaySchedule(){
     return d;
   });
 
-  weekHeader.textContent = `${days[0].toLocaleDateString()} â€“ ${days[6].toLocaleDateString()}`;
+  weekHeader.textContent = `${days[0].toLocaleDateString()} – ${days[6].toLocaleDateString()}`;
 
   // ========== DESKTOP TABLE VIEW ==========
-  // Blue column header row: built once, inserted inside first pool section (header â†’ toolbar â†’ content)
+  // Blue column header row: built once, inserted inside first pool section (header → toolbar → content)
   const headerRow = document.createElement('tr');
   headerRow.innerHTML = '<th>ðŸ”’</th><th>Employee</th>';
   days.forEach(d=>{
@@ -5324,7 +5324,7 @@ function displaySchedule(){
           cell.style.position = 'relative';
           cell.title = 'Click to edit or change status. ' + absenceInfo.cellLabel;
           if(edit.start && edit.end) {
-            cell.innerHTML = h + 'h<br><small>' + edit.start + 'â€“' + edit.end + '</small><br><span style="font-size:11px;color:var(--brand-text-muted);">' + (absenceInfo ? absenceInfo.cellLabel : '') + '</span>';
+            cell.innerHTML = h + 'h<br><small>' + edit.start + '–' + edit.end + '</small><br><span style="font-size:11px;color:var(--brand-text-muted);">' + (absenceInfo ? absenceInfo.cellLabel : '') + '</span>';
           } else {
             cell.innerHTML = h + 'h<br><span style="font-size:11px;color:var(--brand-text-muted);">' + (absenceInfo ? absenceInfo.cellLabel : '') + '</span>';
           }
@@ -5397,7 +5397,7 @@ function displaySchedule(){
             cell.title = (cell.title || '') + ' Less than 8 hours rest from another shift.';
           }
           var overrideInd = edit.seniorityOverride ? ' <span class="override-indicator" title="Seniority override' + (edit.overrideReason ? ': ' + edit.overrideReason : '') + '">&#9888;</span>' : '';
-          cell.innerHTML = `${h}h<br><small>${edit.start}â€“${edit.end}</small>${overrideInd}<br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
+          cell.innerHTML = `${h}h<br><small>${edit.start}–${edit.end}</small>${overrideInd}<br><a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
         } else {
           var overrideInd = edit.seniorityOverride ? ' <span class="override-indicator" title="Seniority override' + (edit.overrideReason ? ': ' + edit.overrideReason : '') + '">&#9888;</span>' : '';
           cell.innerHTML = `${h}h<br>${overrideInd}<a href="#" class="schedule-why-link" title="Why this employee?">Why?</a>`;
@@ -6197,7 +6197,7 @@ function buildScheduleTableForPrint(filterPoolId) {
             total += h;
             daysWorked++;
             cell.className = getShiftClassByHours(h);
-            cell.innerHTML = h + 'h' + (edit.start && edit.end ? '<br><small>' + edit.start + 'â€“' + edit.end + '</small>' : '');
+            cell.innerHTML = h + 'h' + (edit.start && edit.end ? '<br><small>' + edit.start + '–' + edit.end + '</small>' : '');
           } else if (absenceInfo && absenceInfo.id === 'requested_off') {
             cell.style.background = '#3d4550';
             cell.textContent = absenceInfo.cellLabel || '';
@@ -6206,7 +6206,7 @@ function buildScheduleTableForPrint(filterPoolId) {
             total += h;
             daysWorked++;
             cell.className = getShiftClassByHours(h);
-            cell.innerHTML = h + 'h' + (edit.start && edit.end ? '<br><small>' + edit.start + 'â€“' + edit.end + '</small>' : '');
+            cell.innerHTML = h + 'h' + (edit.start && edit.end ? '<br><small>' + edit.start + '–' + edit.end + '</small>' : '');
           }
         }
         row.appendChild(cell);
@@ -6637,7 +6637,7 @@ function saveSettings(){
 
 function clearAllData() {
   var msg = 'This will permanently delete ALL data:\n\n' +
-    'â€¢ All employees\nâ€¢ All events\nâ€¢ All schedules (every week)\nâ€¢ Audit log\nâ€¢ Assignment explanations\n\n' +
+    '• All employees\n• All events\n• All schedules (every week)\n• Audit log\n• Assignment explanations\n\n' +
     'Settings will be restored to defaults.\n\n' +
     'This cannot be undone. Are you sure you want to clear everything?';
   if (!confirm(msg)) return;
