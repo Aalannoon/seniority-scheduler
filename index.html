@@ -3692,11 +3692,28 @@ function initAbsenceModal() {
   };
 }
 
+function syncSickToSchedule(empId, isSick) {
+  var start = getWeekStart();
+  var weekKey = dateToLocalYYYYMMDD(start);
+  var dateStrs = getDateStrsForWeek(weekKey);
+  var typeInfo = ABSENCE_TYPES.find(function(a) { return a.id === 'sick'; });
+  dateStrs.forEach(function(dateStr) {
+    var key = empId + '_' + dateStr;
+    if (isSick) {
+      manualEdits[key] = { status: 'sick', manualOverride: true, absenceReason: typeInfo ? typeInfo.reason : 'Marked Sick manually' };
+    } else {
+      if (manualEdits[key] && manualEdits[key].status === 'sick') delete manualEdits[key];
+    }
+  });
+}
+
 function toggleSick(id, checked){
   const emp = employees.find(e=>e.id===id);
   emp.sick=checked;
+  syncSickToSchedule(id, checked);
   addAuditEntry('Sick Status Changed', id, null, !checked, checked);
   save();
+  displaySchedule();
 }
 
 function setMaxDaysPerWeek(empId, maxDays) {
@@ -3808,9 +3825,11 @@ function saveEmployeeEdit() {
     addAuditEntry('Employee Updated', emp.id, null, changes.join('; '), emp.name);
   }
   
+  if (oldSick !== emp.sick) syncSickToSchedule(emp.id, emp.sick);
   save();
   renderEmployeesPoolSelector();
   renderEmployees();
+  displaySchedule();
   closeEmployeeEditModal();
 }
 
