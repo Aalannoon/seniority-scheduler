@@ -50,14 +50,11 @@ text = text.replace("\u00f0\u0178\u0022\u2039", "\U0001f4cb")
 text = text.replace("\u00f0\u0178\u0022\u00a7", "\U0001f4e7")
 text = text.replace("\u00f0\u0178\u0022\u00a2", "\U0001f4e2")
 text = text.replace("\u00f0\u0178\u0022\u00a5", "\U0001f4e5")
-# Upload (1F4E2), floppy with ASCII quote
-text = text.replace("\u00f0\u0178\u201c\u0081", "\U0001f4e2")
+# Floppy with ASCII quote (distinct from smart-quote variant above)
 text = text.replace("\u00f0\u0178\u0027\u00be", "\U0001f4be")
-# Alarm (1F6A8), light bulb (1F4A1)
+# Alarm (1F6A8)
 text = text.replace("\u00f0\u0178\u0161\u00a8", "\U0001f6a8")
 text = text.replace("\u00f0\u009f\u009a\u00a8", "\U0001f6a8")
-text = text.replace("\u00f0\u009f\u0092\u00a1", "\U0001f4a1")
-text = text.replace("\u00f0\u0178\u2019\u00a1", "\U0001f4a1")
 
 # Em dash / en dash mojibake (â€") -> hyphen
 text = text.replace("\u00e2\u20ac\u201c", "-")
@@ -84,6 +81,10 @@ text = text.replace("\u00e2\u0094\u0081", "-")
 text = text.replace("\u2501", "-")
 
 # Checkmark / ballot (âœ…, âœ", âœ-) -> check / X
+# Do more specific (with trailing space) first so bullet vs checkmark are correct
+text = text.replace("\u00e2\u009c\u201c ", "\u2022 ")
+text = text.replace("\u00e2\u009c ", "\u2022 ")
+text = text.replace("\u00e2\u009c\u0020", "\u2022 ")
 text = text.replace("\u00e2\u009c\u0085", "\u2713")
 text = text.replace("\u00e2\u009c\u0093", "\u2713")
 text = text.replace("\u00e2\u009c\u201c", "\u2713")
@@ -93,11 +94,6 @@ text = text.replace("\u00e2\u009c\u002d", "\u2717")
 # Ballot box with check (âœ…) U+2611 UTF-8 E2 98 91
 text = text.replace("\u00e2\u0098\u0091", "\u2713")
 text = text.replace("\u00e2\u009c\u201d", "\u2713")
-text = text.replace("\u00e2\u009c\u201c ", "\u2022 ")
-text = text.replace("\u00e2\u009c ", "\u2022 ")
-text = text.replace("\u00e2\u009c\u0020", "\u2022 ")
-# List / Format Help icon (â) - single or with space
-text = text.replace("\u00e2\u009c\u201c", "\u2022")
 
 # ---- Then normalize quotes and dashes ----
 # Smart quotes -> normal quotes
