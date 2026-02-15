@@ -1480,7 +1480,7 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
       <input type="number" id="employeeEditSeniority" min="1" style="width: 80px;" />
       <small class="edit-helper">Override will be logged in the audit log.</small>
     </div>
-    <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">Use the Sick / Vac / Unpaid / Float / Off checkboxes in the table to mark absence days on the schedule.</p>
+    <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">Check Sick, Vac, Unpaid, Float, or Off to mark an employee as that absence type until you uncheck it; they won't be scheduled. <strong>Uncheck when the employee is available again.</strong></p>
     <div class="edit-actions">
       <button type="button" class="save-btn btn-primary" id="employeeEditSaveBtn">Save Changes</button>
       <button type="button" class="cancel-btn" id="employeeEditCancelBtn">Cancel</button>
@@ -3264,11 +3264,11 @@ function renderEmployees(){
       <td>${e.pref || "-"}</td>
       <td><input type="number" class="max-days-input" value="${maxDays}" min="1" max="5" placeholder="5" style="width:50px;" ${e.retired ? 'disabled' : ''}></td>
       <td><button type="button" class="dayprefs-btn" style="background:#9b59b6; padding:4px 8px;">Day Prefs</button></td>
-      <td><input type="checkbox" class="sick-check" ${e.status === 'sick' ? "checked" : ""} title="Sick – click then click schedule days"></td>
-      <td><input type="checkbox" class="vacation-check" ${e.status === 'vacation' ? "checked" : ""} title="Vacation – click then click schedule days"></td>
-      <td><input type="checkbox" class="unpaid-vacation-check" ${e.status === 'unpaid_vacation' ? "checked" : ""} title="Unpaid vacation – click then click schedule days"></td>
-      <td><input type="checkbox" class="floating-holiday-check" ${e.status === 'floating_holiday' ? "checked" : ""} title="Floating holiday – click then click schedule days"></td>
-      <td><input type="checkbox" class="off-check" ${e.status === 'requested_off' ? "checked" : ""} title="Off – click then click schedule days"></td>
+      <td><input type="checkbox" class="sick-check" ${e.status === 'sick' ? "checked" : ""} title="Mark as Sick until unmarked. Uncheck when available."></td>
+      <td><input type="checkbox" class="vacation-check" ${e.status === 'vacation' ? "checked" : ""} title="Mark as Vacation until unmarked. Uncheck when available."></td>
+      <td><input type="checkbox" class="unpaid-vacation-check" ${e.status === 'unpaid_vacation' ? "checked" : ""} title="Mark as Unpaid vacation until unmarked. Uncheck when available."></td>
+      <td><input type="checkbox" class="floating-holiday-check" ${e.status === 'floating_holiday' ? "checked" : ""} title="Mark as Floating holiday until unmarked. Uncheck when available."></td>
+      <td><input type="checkbox" class="off-check" ${e.status === 'requested_off' ? "checked" : ""} title="Mark as Off until unmarked. Uncheck when available."></td>
       <td>
         <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info">Info</button>
         ${e.retired ? "-" : '<button type="button" class="retire">Retire</button>'}
@@ -4165,20 +4165,7 @@ function applyOverrideToEdit(edit, reason) {
 function editScheduleCell(empId, date){
   var emp = employees.find(function(e) { return e.id === empId; });
   if (!emp) return;
-  var key;
-  if (emp.status) {
-    key = emp.id + "_" + date;
-    if (!Array.isArray(emp.absences)) emp.absences = [];
-    emp.absences.push({ type: emp.status, startDate: date, endDate: date });
-    manualEdits[key] = {
-      status: emp.status
-    };
-    emp.status = null;
-    save();
-    renderEmployees();
-    displaySchedule();
-    return;
-  }
+  var key = empId + "_" + date;
   if(scheduleGlobalLock) {
     alert('Schedule is locked. Unlock it using the lock button above to make changes.');
     return;
@@ -4187,7 +4174,6 @@ function editScheduleCell(empId, date){
     alert('This employee\'s row is locked. Click the lock icon next to their name to unlock and edit.');
     return;
   }
-  key = empId + "_" + date;
   const ev = events.find(e => e.date === date);
   
   let currentEdit = manualEdits[key];

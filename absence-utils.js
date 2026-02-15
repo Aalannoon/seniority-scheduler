@@ -4,10 +4,16 @@ function toMidnightTime(date) {
   return new Date(dateString).setHours(0, 0, 0, 0); // Normalize to midnight
 }
 
+// Statuses that mean "absent until unchecked" when set on employee from Employees tab
+var GLOBAL_ABSENCE_STATUSES = ['sick', 'vacation', 'floating_holiday', 'unpaid_vacation', 'requested_off'];
+
 // Function to check if an employee is absent on a given date
 function isAbsentOnDate(employee, date) {
+  if (!employee) return false;
+  // Employee-tab checkbox: status set = absent on every date until unchecked
+  if (employee.status && GLOBAL_ABSENCE_STATUSES.indexOf(employee.status) !== -1) return true;
   const shiftTime = toMidnightTime(date); // Normalize date for comparison
-  if (!employee.absences || employee.absences.length === 0) return false; // If no absences
+  if (!employee.absences || employee.absences.length === 0) return false;
 
   return employee.absences.some(absence => {
     const start = toMidnightTime(absence.startDate);
@@ -18,7 +24,10 @@ function isAbsentOnDate(employee, date) {
 
 // Return the absence type (e.g. 'sick', 'vacation') for the first absence covering this date, or null
 function getAbsenceTypeOnDate(employee, date) {
-  if (!employee || !employee.absences || employee.absences.length === 0) return null;
+  if (!employee) return null;
+  // Employee-tab checkbox: status set = show this type on every date until unchecked
+  if (employee.status && GLOBAL_ABSENCE_STATUSES.indexOf(employee.status) !== -1) return employee.status;
+  if (!employee.absences || employee.absences.length === 0) return null;
   const shiftTime = toMidnightTime(date);
   const match = employee.absences.find(absence => {
     const start = toMidnightTime(absence.startDate);
