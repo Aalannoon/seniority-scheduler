@@ -3239,13 +3239,15 @@ function rebalanceSeniority(){
 function retireEmployee(id){
   if(!confirm("Retire this employee?")) return;
   const emp = employees.find(e=>e.id===id);
-  emp.retired=true;
+  if (!emp) return;
+  emp.retired = true;
   rebalanceSeniority();
   
   addAuditEntry('Employee Retired', id, null, 'Active', 'Retired');
-  save(); 
+  save();
   renderEmployeesPoolSelector();
   renderEmployees();
+  displaySchedule();
 }
 
 function renderEmployees(){
