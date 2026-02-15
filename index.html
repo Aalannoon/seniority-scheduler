@@ -1492,7 +1492,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <thead>
 <tr>
   <th>Name</th><th>Type</th><th>Email</th><th>Pref</th>
-  <th>Max Days/Wk</th><th>Vacation</th><th>Day Prefs</th><th>Time Off</th><th>Sick</th><th>Actions</th>
+  <th>Max Days/Wk</th><th>Vacation</th><th>Day Prefs</th><th>Time Off</th><th>Sick</th><th>Vac</th><th>Unpaid</th><th>Float</th><th>Off</th><th>Actions</th>
 </tr>
 </thead>
 <tbody id="employeesTable"></tbody>
@@ -1528,9 +1528,13 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
       <small class="edit-helper">Override will be logged in the audit log.</small>
     </div>
     <div class="edit-row">
-      <label><input type="checkbox" id="employeeEditSick" /> Mark as sick (unavailable this week)</label>
+      <label><input type="checkbox" id="employeeEditSick" /> Sick</label>
+      <label style="margin-left:12px;"><input type="checkbox" id="employeeEditVacation" /> Vacation</label>
+      <label style="margin-left:12px;"><input type="checkbox" id="employeeEditUnpaidVacation" /> Unpaid vacation</label>
+      <label style="margin-left:12px;"><input type="checkbox" id="employeeEditFloatingHoliday" /> Floating holiday</label>
+      <label style="margin-left:12px;"><input type="checkbox" id="employeeEditOff" /> Off</label>
     </div>
-    <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">Changes apply to future schedule generation only. Existing shifts are not changed.</p>
+    <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">One status per employee. Changes apply to future schedule generation only.</p>
     <div class="edit-actions">
       <button type="button" class="save-btn btn-primary" id="employeeEditSaveBtn">Save Changes</button>
       <button type="button" class="cancel-btn" id="employeeEditCancelBtn">Cancel</button>
@@ -3329,7 +3333,11 @@ function renderEmployees(){
       <td><button type="button" class="vacation-btn" style="background:#3498db; padding:4px 8px;">Vacation</button></td>
       <td><button type="button" class="dayprefs-btn" style="background:#9b59b6; padding:4px 8px;">Day Prefs</button></td>
       <td><button type="button" class="timeoff-btn" style="background:#6b7c8d; padding:4px 8px;" title="Time Off / Sick">Time Off</button></td>
-      <td><input type="checkbox" class="sick-check" ${(e?.status === 'sick') ? "checked" : ""}></td>
+      <td><input type="checkbox" class="sick-check" ${(e?.status === 'sick') ? "checked" : ""} title="Sick"></td>
+      <td><input type="checkbox" class="vacation-check" ${(e?.status === 'vacation') ? "checked" : ""} title="Vacation"></td>
+      <td><input type="checkbox" class="unpaid-vacation-check" ${(e?.status === 'unpaid_vacation') ? "checked" : ""} title="Unpaid vacation"></td>
+      <td><input type="checkbox" class="floating-holiday-check" ${(e?.status === 'floating_holiday') ? "checked" : ""} title="Floating holiday"></td>
+      <td><input type="checkbox" class="off-check" ${(e?.status === 'requested_off') ? "checked" : ""} title="Off"></td>
       <td>
         <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info">Info</button>
         ${e.retired ? "-" : '<button type="button" class="retire">Retire</button>'}
@@ -3386,6 +3394,10 @@ function renderEmployees(){
     const dayPrefsBtn = row.querySelector('.dayprefs-btn');
     const timeoffBtn = row.querySelector('.timeoff-btn');
     const sickCheck = row.querySelector('.sick-check');
+    const vacationCheck = row.querySelector('.vacation-check');
+    const unpaidVacationCheck = row.querySelector('.unpaid-vacation-check');
+    const floatingHolidayCheck = row.querySelector('.floating-holiday-check');
+    const offCheck = row.querySelector('.off-check');
     const retireBtn = row.querySelector('.retire');
     const infoBtn = row.querySelector('.info-btn');
     
@@ -3414,6 +3426,26 @@ function renderEmployees(){
     if(sickCheck) {
       sickCheck.onchange = function() {
         toggleSick(e.id, this.checked);
+      };
+    }
+    if(vacationCheck) {
+      vacationCheck.onchange = function() {
+        toggleVacation(e.id, this.checked);
+      };
+    }
+    if(unpaidVacationCheck) {
+      unpaidVacationCheck.onchange = function() {
+        toggleUnpaidVacation(e.id, this.checked);
+      };
+    }
+    if(floatingHolidayCheck) {
+      floatingHolidayCheck.onchange = function() {
+        toggleFloatingHoliday(e.id, this.checked);
+      };
+    }
+    if(offCheck) {
+      offCheck.onchange = function() {
+        toggleOff(e.id, this.checked);
       };
     }
     
@@ -3731,26 +3763,77 @@ function initAbsenceModal() {
 }
 
 function syncSickToSchedule(empId, isSick) {
+  syncStatusToSchedule(empId, isSick ? 'sick' : null);
+}
+
+function syncStatusToSchedule(empId, status) {
   var start = getWeekStart();
   var weekKey = dateToLocalYYYYMMDD(start);
   var dateStrs = getDateStrsForWeek(weekKey);
-  var typeInfo = ABSENCE_TYPES.find(function(a) { return a.id === 'sick'; });
+  var statusIds = ['sick', 'vacation', 'unpaid_vacation', 'floating_holiday', 'requested_off'];
+  var typeInfo = status ? ABSENCE_TYPES.find(function(a) { return a.id === status; }) : null;
   dateStrs.forEach(function(dateStr) {
     var key = empId + '_' + dateStr;
-    if (isSick) {
-      manualEdits[key] = { status: 'sick', manualOverride: true, absenceReason: typeInfo ? typeInfo.reason : 'Marked Sick manually' };
+    if (status) {
+      manualEdits[key] = { status: status, manualOverride: true, absenceReason: typeInfo ? typeInfo.reason : (status + ' (week)') };
     } else {
-      if (manualEdits[key] && manualEdits[key].status === 'sick') delete manualEdits[key];
+      var ed = manualEdits[key];
+      if (ed && statusIds.indexOf(ed.status) !== -1) delete manualEdits[key];
     }
   });
 }
 
 function toggleSick(id, checked){
   const emp = employees.find(e=>e.id===id);
+  if (!emp) return;
   emp.status = checked ? 'sick' : null;
   if (!emp.status) delete emp.status;
-  syncSickToSchedule(id, checked);
+  syncStatusToSchedule(id, emp.status);
   addAuditEntry('Sick Status Changed', id, null, !checked, checked);
+  save();
+  displaySchedule();
+}
+
+function toggleVacation(id, checked) {
+  const emp = employees.find(function(e) { return e.id === id; });
+  if (!emp) return;
+  emp.status = checked ? 'vacation' : null;
+  if (!emp.status) delete emp.status;
+  syncStatusToSchedule(id, emp.status);
+  addAuditEntry('Week Status Changed', id, null, emp.status ? null : 'vacation', emp.status || 'cleared');
+  save();
+  displaySchedule();
+}
+
+function toggleUnpaidVacation(id, checked) {
+  const emp = employees.find(function(e) { return e.id === id; });
+  if (!emp) return;
+  emp.status = checked ? 'unpaid_vacation' : null;
+  if (!emp.status) delete emp.status;
+  syncStatusToSchedule(id, emp.status);
+  addAuditEntry('Week Status Changed', id, null, emp.status ? null : 'unpaid_vacation', emp.status || 'cleared');
+  save();
+  displaySchedule();
+}
+
+function toggleFloatingHoliday(id, checked) {
+  const emp = employees.find(function(e) { return e.id === id; });
+  if (!emp) return;
+  emp.status = checked ? 'floating_holiday' : null;
+  if (!emp.status) delete emp.status;
+  syncStatusToSchedule(id, emp.status);
+  addAuditEntry('Week Status Changed', id, null, emp.status ? null : 'floating_holiday', emp.status || 'cleared');
+  save();
+  displaySchedule();
+}
+
+function toggleOff(id, checked) {
+  const emp = employees.find(function(e) { return e.id === id; });
+  if (!emp) return;
+  emp.status = checked ? 'requested_off' : null;
+  if (!emp.status) delete emp.status;
+  syncStatusToSchedule(id, emp.status);
+  addAuditEntry('Week Status Changed', id, null, emp.status ? null : 'off', emp.status || 'cleared');
   save();
   displaySchedule();
 }
@@ -3795,6 +3878,10 @@ function viewEmployeeInfo(empId) {
   document.getElementById('employeeEditPref').value = emp.pref || '';
   document.getElementById('employeeEditSeniority').value = getSeniorityForEmployee(emp) != null ? getSeniorityForEmployee(emp) : '';
   document.getElementById('employeeEditSick').checked = (emp?.status === 'sick');
+  document.getElementById('employeeEditVacation').checked = (emp?.status === 'vacation');
+  document.getElementById('employeeEditUnpaidVacation').checked = (emp?.status === 'unpaid_vacation');
+  document.getElementById('employeeEditFloatingHoliday').checked = (emp?.status === 'floating_holiday');
+  document.getElementById('employeeEditOff').checked = (emp?.status === 'requested_off');
   var overlay = document.getElementById('employeeEditModalOverlay');
   overlay.classList.add('employee-edit-visible');
   setTimeout(function(){ var el = document.getElementById('employeeEditType'); if(el) el.focus(); }, 50);
@@ -3826,6 +3913,10 @@ function saveEmployeeEdit() {
   var prefEl = document.getElementById('employeeEditPref');
   var seniorityEl = document.getElementById('employeeEditSeniority');
   var sickEl = document.getElementById('employeeEditSick');
+  var vacationEl = document.getElementById('employeeEditVacation');
+  var unpaidVacationEl = document.getElementById('employeeEditUnpaidVacation');
+  var floatingHolidayEl = document.getElementById('employeeEditFloatingHoliday');
+  var offEl = document.getElementById('employeeEditOff');
   
   var poolId = poolEl && poolEl.value ? poolEl.value : emp.laborPoolId;
   if (!poolId) {
@@ -3851,7 +3942,7 @@ function saveEmployeeEdit() {
   emp.seniorityByPool[poolId] = check.value;
   emp.seniority = check.value;
   emp.pref = prefEl.value || null;
-  emp.status = sickEl.checked ? 'sick' : null;
+  emp.status = (sickEl && sickEl.checked) ? 'sick' : (vacationEl && vacationEl.checked) ? 'vacation' : (unpaidVacationEl && unpaidVacationEl.checked) ? 'unpaid_vacation' : (floatingHolidayEl && floatingHolidayEl.checked) ? 'floating_holiday' : (offEl && offEl.checked) ? 'requested_off' : null;
   if (!emp.status) delete emp.status;
   
   var changes = [];
@@ -3859,13 +3950,13 @@ function saveEmployeeEdit() {
   if (oldPoolId !== emp.laborPoolId) changes.push('labor pool → ' + (getLaborPoolById(emp.laborPoolId) ? getLaborPoolById(emp.laborPoolId).name : emp.laborPoolId));
   if (oldPref !== (emp.pref || '')) changes.push('preference ' + (oldPref || 'none') + ' → ' + (emp.pref || 'none'));
   if (oldSeniority !== emp.seniority) changes.push('seniority ' + oldSeniority + ' → ' + emp.seniority);
-  if (oldStatus !== emp.status) changes.push('sick ' + (oldStatus === 'sick' ? 'yes' : 'no') + ' → ' + (emp.status === 'sick' ? 'yes' : 'no'));
+  if (oldStatus !== emp.status) changes.push('status ' + (oldStatus || 'none') + ' → ' + (emp.status || 'none'));
   
   if (changes.length) {
     addAuditEntry('Employee Updated', emp.id, null, changes.join('; '), emp.name);
   }
   
-  if (oldStatus !== emp.status) syncSickToSchedule(emp.id, emp.status === 'sick');
+  if (oldStatus !== emp.status) syncStatusToSchedule(emp.id, emp.status);
   save();
   renderEmployeesPoolSelector();
   renderEmployees();
