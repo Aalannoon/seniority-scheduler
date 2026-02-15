@@ -4621,6 +4621,15 @@ function generateSchedule(){
     const t = calculateSmartShift(ev, s.h);
     const detailsForDay = assignmentDetails[dateStr] || {};
     
+    // Never write shifts for anyone who has absence on this date (sick, vacation, etc.)
+    assignments[dateStr] = (assignments[dateStr] || []).filter(function(empId) {
+      var k = empId + '_' + dateStr;
+      var ex = manualEdits && manualEdits[k];
+      if (ex && isFullAbsenceStatus(ex.status)) return false;
+      if (ex && ex.status && !ex.hours && !ex.start) return false;
+      return true;
+    });
+    
     assignments[dateStr].forEach(empId => {
       const key = empId + "_" + dateStr;
       
@@ -5586,13 +5595,11 @@ function assignEmployeesToWeek(days) {
   function isEligibleForSlot(emp, item) {
     if (!emp || typeof emp !== 'object') return false;
     var dateStr = item.dateStr;
-    var slotStart = item.slot.start;
     var key = emp.id + "_" + dateStr;
+    var edit = manualEdits[key];
+    if (edit && (isFullAbsenceStatus(edit.status) || (edit.status && !edit.hours && !edit.start))) return false;
     if (item.assignedTo !== null) return false;
     if (lockedCells[key] || lockedRows[emp.id]) return false;
-    var edit = manualEdits[key];
-    if (edit && isFullAbsenceStatus(edit.status)) return false;
-    if (edit && edit.status && !edit.hours && !edit.start) return false;
     if (edit) {
       if (edit.status !== 'requested_off' || (edit.hours || edit.start)) return false;
     }
@@ -5600,7 +5607,7 @@ function assignEmployeesToWeek(days) {
     if ((employeeHoursToday[dateStr][emp.id] || 0) + item.slot.hours > REGULAR_HOURS_MAX) return false;
     var empMaxDays = emp.maxDaysPerWeek !== undefined ? emp.maxDaysPerWeek : 5;
     if (employeeWorkDays[emp.id] >= empMaxDays) return false;
-    var gapCheck = canWorkShift(emp.id, dateStr, slotStart, item.slot.end, employeeShiftHistory);
+    var gapCheck = canWorkShift(emp.id, dateStr, item.slot.start, item.slot.end, employeeShiftHistory);
     return gapCheck.allowed;
   }
   
