@@ -80,9 +80,6 @@ body.light-mode .labor-cost-panel strong,
 body.light-mode .labor-cost-panel p {
   color: #1a1f26;
 }
-body.light-mode #absenceModal label {
-  color: #374151;
-}
 body.light-mode th,
 body.light-mode td {
   border-color: #b8bcc4 !important;
@@ -1319,20 +1316,6 @@ body.light-mode .email-cell-wrap:hover { background: #f3f4f6; }
 .email-cell-input { width: 100%; max-width: 220px; padding: 4px 6px; border: 1px solid var(--brand-primary); border-radius: 4px; font-size: 13px; background: var(--brand-bg-elevated); color: var(--brand-text); box-sizing: border-box; }
 body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-color: var(--brand-primary); }
 
-#absenceModalOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
-#absenceModalOverlay.absence-visible { display: flex; }
-#absenceModal { background: var(--brand-bg-elevated); color: var(--brand-text); padding: 24px; border-radius: 12px; min-width: 340px; border: 1px solid var(--brand-border); }
-#absenceModal h3 { margin-top: 0; color: var(--brand-primary); }
-#absenceModal .edit-row { margin: 12px 0; }
-#absenceModal label { display: block; margin-bottom: 4px; font-size: 13px; color: var(--brand-text-muted); }
-#absenceModal input, #absenceModal select { width: 100%; max-width: 280px; padding: 8px; border-radius: 6px; border: 1px solid var(--brand-border); background: var(--brand-bg); color: var(--brand-text); font-size: 14px; box-sizing: border-box; }
-#absenceModal .modal-actions { margin-top: 20px; display: flex; gap: 10px; }
-#absenceModal .modal-actions button { padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: 500; }
-#absenceModal .modal-actions .btn-primary { background: var(--brand-primary); color: #fff; }
-#absenceModal .modal-actions .btn-secondary { background: var(--brand-border); color: var(--brand-text); }
-body.light-mode #absenceModal { background: #fff; color: #1a1f26; border-color: #9ca3af; }
-body.light-mode #absenceModal input, body.light-mode #absenceModal select { background: #fff; color: #1a1f26; border-color: #9ca3af; }
-
 </style>
 </head>
 
@@ -1362,36 +1345,6 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
   </div>
   <span class="week-header" id="weekHeader"></span>
 </header>
-
-<div id="absenceModalOverlay">
-  <div id="absenceModal">
-    <h3 id="absenceModalTitle">Time Off / Sick</h3>
-    <p id="absenceModalEmpName" style="margin: 0 0 16px 0; font-size: 15px;"></p>
-    <div class="edit-row">
-      <label for="absenceStartDate">Start date</label>
-      <input type="date" id="absenceStartDate" />
-    </div>
-    <div class="edit-row">
-      <label for="absenceEndDate">End date (optional - leave blank for single day)</label>
-      <input type="date" id="absenceEndDate" placeholder="Optional" />
-    </div>
-    <div class="edit-row">
-      <label for="absenceType">Type</label>
-      <select id="absenceType">
-        <option value="sick">Sick</option>
-        <option value="vacation">Vacation (Paid)</option>
-        <option value="floating_holiday">Floating Holiday (Paid)</option>
-        <option value="unpaid_vacation">Unpaid Vacation</option>
-        <option value="requested_off">Request Off</option>
-      </select>
-    </div>
-    <p style="font-size: 12px; color: var(--brand-text-muted); margin: 8px 0 0 0;">Request Off is visual only; it does not remove an existing shift until you change it to another type.</p>
-    <div class="modal-actions">
-      <button type="button" class="btn-primary" id="absenceConfirmBtn">Confirm</button>
-      <button type="button" class="btn-secondary" id="absenceCancelBtn">Cancel</button>
-    </div>
-  </div>
-</div>
 
 <button type="button" onclick="toggleDarkMode()">Toggle Dark Mode</button>
 <span id="tourPrintExportWrap" style="display: inline-flex; align-items: center; gap: 8px;">
@@ -1492,7 +1445,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
 <thead>
 <tr>
   <th>Name</th><th>Type</th><th>Email</th><th>Pref</th>
-  <th>Max Days/Wk</th><th>Vacation</th><th>Day Prefs</th><th>Time Off</th><th>Sick</th><th>Vac</th><th>Unpaid</th><th>Float</th><th>Off</th><th>Actions</th>
+  <th>Max Days/Wk</th><th>Day Prefs</th><th>Sick</th><th>Vac</th><th>Unpaid</th><th>Float</th><th>Off</th><th>Actions</th>
 </tr>
 </thead>
 <tbody id="employeesTable"></tbody>
@@ -1527,14 +1480,7 @@ body.light-mode #absenceModal input, body.light-mode #absenceModal select { back
       <input type="number" id="employeeEditSeniority" min="1" style="width: 80px;" />
       <small class="edit-helper">Override will be logged in the audit log.</small>
     </div>
-    <div class="edit-row">
-      <label><input type="checkbox" id="employeeEditSick" /> Sick</label>
-      <label style="margin-left:12px;"><input type="checkbox" id="employeeEditVacation" /> Vacation</label>
-      <label style="margin-left:12px;"><input type="checkbox" id="employeeEditUnpaidVacation" /> Unpaid vacation</label>
-      <label style="margin-left:12px;"><input type="checkbox" id="employeeEditFloatingHoliday" /> Floating holiday</label>
-      <label style="margin-left:12px;"><input type="checkbox" id="employeeEditOff" /> Off</label>
-    </div>
-    <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">One status per employee. Changes apply to future schedule generation only.</p>
+    <p style="font-size: 12px; color: #95a5a6; margin: 12px 0 0 0;">Use the Sick / Vac / Unpaid / Float / Off checkboxes in the table to mark absence days on the schedule.</p>
     <div class="edit-actions">
       <button type="button" class="save-btn btn-primary" id="employeeEditSaveBtn">Save Changes</button>
       <button type="button" class="cancel-btn" id="employeeEditCancelBtn">Cancel</button>
@@ -1932,6 +1878,7 @@ let manualEdits = JSON.parse(localStorage.getItem("manualEdits") || "{}");
 let lockedCells = JSON.parse(localStorage.getItem("lockedCells") || "{}");
 let lockedRows = JSON.parse(localStorage.getItem("lockedRows") || "{}");
 let scheduleGlobalLock = JSON.parse(localStorage.getItem("scheduleGlobalLock") || "false");
+var currentAbsenceMode = null;
 let auditLog = JSON.parse(localStorage.getItem("auditLog") || "[]");
 (function() {
   var reasonVersion = localStorage.getItem("assignmentReasonVersion");
@@ -2562,18 +2509,6 @@ function migrateImportData(data) {
   return result;
 }
 
-function isWeekLevelAbsenceStatus(status) {
-  if (!status) return false;
-  var WEEK_LEVEL_STATUSES = [
-    "sick",
-    "vacation",
-    "unpaid_vacation",
-    "floating_holiday",
-    "off",
-    "requested_off"
-  ];
-  return WEEK_LEVEL_STATUSES.includes(String(status).toLowerCase());
-}
 function ensureEmployeeDefaults(list) {
   if (!Array.isArray(list)) return;
   var defaultPoolId = (laborPools.length && getLaborPoolById(DEFAULT_SERVERS_POOL_ID)) ? DEFAULT_SERVERS_POOL_ID : (laborPools[0] ? laborPools[0].id : null);
@@ -2584,13 +2519,6 @@ function ensureEmployeeDefaults(list) {
     if (emp.seniority != null && emp.laborPoolId && emp.seniorityByPool[emp.laborPoolId] === undefined) emp.seniorityByPool[emp.laborPoolId] = emp.seniority;
     ensureDayPreferencesMondayBased(emp);
     if (emp.maxDaysPerWeek === undefined) emp.maxDaysPerWeek = 5;
-    if (emp && Object.prototype.hasOwnProperty.call(emp, 'sick')) {
-      var wasSick = emp['sick'];
-      emp.status = wasSick ? 'sick' : (emp.status ?? null);
-      delete emp['sick'];
-    }
-    var safeStatus = emp?.status ?? null;
-    if (safeStatus != null && !isWeekLevelAbsenceStatus(safeStatus)) emp.status = null;
   });
 }
 
@@ -3330,14 +3258,12 @@ function renderEmployees(){
       <td class="email-cell-td" data-emp-id="${e.id}" title="${e.email ? 'Click to edit' : 'Click to add email'}"></td>
       <td>${e.pref || "-"}</td>
       <td><input type="number" class="max-days-input" value="${maxDays}" min="1" max="5" placeholder="5" style="width:50px;" ${e.retired ? 'disabled' : ''}></td>
-      <td><button type="button" class="vacation-btn" style="background:#3498db; padding:4px 8px;">Vacation</button></td>
       <td><button type="button" class="dayprefs-btn" style="background:#9b59b6; padding:4px 8px;">Day Prefs</button></td>
-      <td><button type="button" class="timeoff-btn" style="background:#6b7c8d; padding:4px 8px;" title="Time Off / Sick">Time Off</button></td>
-      <td><input type="checkbox" class="sick-check" ${(e?.status === 'sick') ? "checked" : ""} title="Sick"></td>
-      <td><input type="checkbox" class="vacation-check" ${(e?.status === 'vacation') ? "checked" : ""} title="Vacation"></td>
-      <td><input type="checkbox" class="unpaid-vacation-check" ${(e?.status === 'unpaid_vacation') ? "checked" : ""} title="Unpaid vacation"></td>
-      <td><input type="checkbox" class="floating-holiday-check" ${(e?.status === 'floating_holiday') ? "checked" : ""} title="Floating holiday"></td>
-      <td><input type="checkbox" class="off-check" ${(e?.status === 'requested_off') ? "checked" : ""} title="Off"></td>
+      <td><input type="checkbox" class="sick-check" ${(currentAbsenceMode && currentAbsenceMode.empId === e.id && currentAbsenceMode.status === 'sick') ? "checked" : ""} title="Sick – click then click schedule days"></td>
+      <td><input type="checkbox" class="vacation-check" ${(currentAbsenceMode && currentAbsenceMode.empId === e.id && currentAbsenceMode.status === 'vacation') ? "checked" : ""} title="Vacation – click then click schedule days"></td>
+      <td><input type="checkbox" class="unpaid-vacation-check" ${(currentAbsenceMode && currentAbsenceMode.empId === e.id && currentAbsenceMode.status === 'unpaid_vacation') ? "checked" : ""} title="Unpaid vacation – click then click schedule days"></td>
+      <td><input type="checkbox" class="floating-holiday-check" ${(currentAbsenceMode && currentAbsenceMode.empId === e.id && currentAbsenceMode.status === 'floating_holiday') ? "checked" : ""} title="Floating holiday – click then click schedule days"></td>
+      <td><input type="checkbox" class="off-check" ${(currentAbsenceMode && currentAbsenceMode.empId === e.id && currentAbsenceMode.status === 'requested_off') ? "checked" : ""} title="Off – click then click schedule days"></td>
       <td>
         <button type="button" class="info-btn" style="background:#27ae60; padding:4px 8px;" title="View/Edit Info">Info</button>
         ${e.retired ? "-" : '<button type="button" class="retire">Retire</button>'}
@@ -3390,9 +3316,7 @@ function renderEmployees(){
     }
     
     const maxDaysInput = row.querySelector('.max-days-input');
-    const vacationBtn = row.querySelector('.vacation-btn');
     const dayPrefsBtn = row.querySelector('.dayprefs-btn');
-    const timeoffBtn = row.querySelector('.timeoff-btn');
     const sickCheck = row.querySelector('.sick-check');
     const vacationCheck = row.querySelector('.vacation-check');
     const unpaidVacationCheck = row.querySelector('.unpaid-vacation-check');
@@ -3401,19 +3325,9 @@ function renderEmployees(){
     const retireBtn = row.querySelector('.retire');
     const infoBtn = row.querySelector('.info-btn');
     
-    if(timeoffBtn) {
-      timeoffBtn.onclick = function() { openAbsenceModal(e.id); };
-    }
-    
     if(maxDaysInput) {
       maxDaysInput.onchange = function() {
         setMaxDaysPerWeek(e.id, parseInt(this.value));
-      };
-    }
-    
-    if(vacationBtn) {
-      vacationBtn.onclick = function() {
-        openVacationPicker(e.id);
       };
     }
     
@@ -3424,29 +3338,19 @@ function renderEmployees(){
     }
     
     if(sickCheck) {
-      sickCheck.onchange = function() {
-        toggleSick(e.id, this.checked);
-      };
+      sickCheck.onclick = function() { onStatusCheckboxClick(e, 'sick'); };
     }
     if(vacationCheck) {
-      vacationCheck.onchange = function() {
-        toggleVacation(e.id, this.checked);
-      };
+      vacationCheck.onclick = function() { onStatusCheckboxClick(e, 'vacation'); };
     }
     if(unpaidVacationCheck) {
-      unpaidVacationCheck.onchange = function() {
-        toggleUnpaidVacation(e.id, this.checked);
-      };
+      unpaidVacationCheck.onclick = function() { onStatusCheckboxClick(e, 'unpaid_vacation'); };
     }
     if(floatingHolidayCheck) {
-      floatingHolidayCheck.onchange = function() {
-        toggleFloatingHoliday(e.id, this.checked);
-      };
+      floatingHolidayCheck.onclick = function() { onStatusCheckboxClick(e, 'floating_holiday'); };
     }
     if(offCheck) {
-      offCheck.onchange = function() {
-        toggleOff(e.id, this.checked);
-      };
+      offCheck.onclick = function() { onStatusCheckboxClick(e, 'requested_off'); };
     }
     
     if(retireBtn) {
@@ -3464,120 +3368,9 @@ function renderEmployees(){
   var poolName = getLaborPoolById(selectedPoolId) ? getLaborPoolById(selectedPoolId).name : 'this pool';
   if (filtered.length === 0) {
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = '<td colspan="10" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No ' + poolName + ' yet. Add an employee above to get started.</td>';
+    emptyRow.innerHTML = '<td colspan="12" style="text-align:center;padding:1.5rem;color:#7f8c8d;">No ' + poolName + ' yet. Add an employee above to get started.</td>';
     tableEl.appendChild(emptyRow);
   }
-}
-
-function openVacationPicker(empId) {
-  const emp = employees.find(e => e.id === empId);
-  
-  // Get current week
-  const start = getWeekStart();
-  const days = [...Array(7)].map((_, i) => {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    return d;
-  });
-  
-  // Build dialog
-  let dialog = `Set vacation days for ${emp.name}\n`;
-  dialog += `Current week: ${days[0].toLocaleDateString()} - ${days[6].toLocaleDateString()}\n\n`;
-  dialog += `Select days to mark as VACATION:\n`;
-  dialog += `--------------------------\n`;
-  
-  const dayOptions = [];
-  days.forEach((d, index) => {
-    const dateStr = iso(d);
-    const dayName = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
-    const key = empId + "_" + dateStr;
-    const ed = manualEdits[key];
-    const isTimeOff = ed && ed.status && (isFullAbsenceStatus(ed.status) || ed.status === 'requested_off');
-    dialog += `${index + 1}. ${dayName}${isTimeOff ? ' âœ"' : ''}\n`;
-    dayOptions.push({ dateStr, dayName, isTimeOff });
-  });
-  
-  dialog += `--------------------------\n\n`;
-  dialog += `Enter day numbers separated by commas:\n`;
-  dialog += `Example: 1,3,5 (for Mon, Wed, Fri)\n`;
-  dialog += `Or enter "all" for entire week\n`;
-  dialog += `Or enter "clear" to remove all vacation days\n`;
-  
-  const input = prompt(dialog);
-  
-  if (input === null) return; // Cancelled
-  
-  const trimmed = input.trim().toLowerCase();
-  
-  // Clear all vacation days
-  if (trimmed === 'clear' || trimmed === '') {
-    days.forEach(d => {
-      const dateStr = iso(d);
-      const key = empId + "_" + dateStr;
-      if (manualEdits[key] && isFullAbsenceStatus(manualEdits[key].status)) {
-        delete manualEdits[key];
-      }
-    });
-    emp.status = null;
-    delete emp.status;
-    addAuditEntry('Time Off Cleared', empId, null, 'Had time off', 'Cleared');
-    save();
-    displaySchedule();
-    return;
-  }
-  
-  // Mark all days
-  if (trimmed === 'all') {
-    days.forEach(d => {
-      const dateStr = iso(d);
-      const key = empId + "_" + dateStr;
-      manualEdits[key] = { status: 'vacation', manualOverride: true };
-      delete assignmentReasonTags[key];
-      delete assignmentReasons[key];
-      delete assignmentReasonCodes[key];
-    });
-    emp.status = 'vacation';
-    addAuditEntry('Vacation Set', empId, null, null, 'Entire week');
-    save();
-    displaySchedule();
-    return;
-  }
-  
-  // Parse specific days
-  const selectedDays = trimmed.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n >= 1 && n <= 7);
-  
-  if (selectedDays.length === 0) {
-    alert('Check required. Please enter day numbers (1-7), "all", or "clear".');
-    return;
-  }
-  
-  // Clear existing vacation days first
-  days.forEach(d => {
-    const dateStr = iso(d);
-    const key = empId + "_" + dateStr;
-    if (manualEdits[key] && isFullAbsenceStatus(manualEdits[key].status)) {
-      delete manualEdits[key];
-    }
-  });
-  
-  // Set new vacation days
-  const vacationDates = [];
-  selectedDays.forEach(dayNum => {
-    const d = days[dayNum - 1];
-    if (d) {
-      const dateStr = iso(d);
-      const key = empId + "_" + dateStr;
-      manualEdits[key] = { status: 'vacation', manualOverride: true };
-      delete assignmentReasonTags[key];
-      delete assignmentReasons[key];
-      delete assignmentReasonCodes[key];
-      vacationDates.push(d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' }));
-    }
-  });
-  
-  addAuditEntry('Vacation Set', empId, null, null, vacationDates.join(', '));
-  save();
-  displaySchedule();
 }
 
 function openDayPreferences(empId) {
@@ -3672,169 +3465,13 @@ function openDayPreferences(empId) {
   alert(`Preferences saved!\n\nPrefers to work: ${workDays || 'none'}\nPrefers off: ${offDays || 'none'}`);
 }
 
-var absenceModalEmpId = null;
-
-function openAbsenceModal(empId) {
-  var emp = employees.find(function(e) { return e.id === empId; });
-  if (!emp) return;
-  absenceModalEmpId = empId;
-  document.getElementById('absenceModalTitle').textContent = 'Time Off / Sick';
-  document.getElementById('absenceModalEmpName').textContent = emp.name;
-  var start = getWeekStart();
-  document.getElementById('absenceStartDate').value = iso(start);
-  document.getElementById('absenceEndDate').value = '';
-  document.getElementById('absenceType').value = 'sick';
-  document.getElementById('absenceModalOverlay').classList.add('absence-visible');
-  setTimeout(function(){ var el = document.getElementById('absenceStartDate'); if(el) el.focus(); }, 50);
-  function onAbsenceKey(e) {
-    if (e.key === 'Escape') { closeAbsenceModal(); remove(); }
-    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); applyAbsence(); }
+function onStatusCheckboxClick(emp, statusName) {
+  if (currentAbsenceMode && currentAbsenceMode.empId === emp.id && currentAbsenceMode.status === statusName) {
+    currentAbsenceMode = null;
+  } else {
+    currentAbsenceMode = { empId: emp.id, status: statusName };
   }
-  function remove() {
-    document.removeEventListener('keydown', onAbsenceKey);
-  }
-  document.addEventListener('keydown', onAbsenceKey);
-  document.getElementById('absenceModalOverlay')._modalCleanup = remove;
-}
-
-function closeAbsenceModal() {
-  var overlay = document.getElementById('absenceModalOverlay');
-  if (overlay._modalCleanup) overlay._modalCleanup();
-  absenceModalEmpId = null;
-  overlay.classList.remove('absence-visible');
-}
-
-function getDatesBetween(startStr, endStr) {
-  var out = [];
-  var d = new Date(startStr);
-  var end = new Date(endStr || startStr);
-  if (d > end) { var t = d; d = end; end = t; }
-  while (d <= end) {
-    out.push(iso(d));
-    d.setDate(d.getDate() + 1);
-  }
-  return out;
-}
-
-function applyAbsence() {
-  if (!absenceModalEmpId) return;
-  var startStr = document.getElementById('absenceStartDate').value;
-  if (!startStr) {
-    alert('Please select a start date.');
-    return;
-  }
-  var endStr = document.getElementById('absenceEndDate').value || startStr;
-  var typeId = document.getElementById('absenceType').value;
-  var typeInfo = ABSENCE_TYPES.find(function(t) { return t.id === typeId; });
-  if (!typeInfo) return;
-  var dateStrs = getDatesBetween(startStr, endStr);
-  var emp = employees.find(function(e) { return e.id === absenceModalEmpId; });
-  if (!emp) return;
-  var isRequestOff = typeId === 'requested_off';
-  dateStrs.forEach(function(dateStr) {
-    var key = absenceModalEmpId + '_' + dateStr;
-    if (isRequestOff) {
-      var existing = manualEdits[key];
-      if (existing && (existing.hours || existing.start)) {
-        manualEdits[key] = { status: 'requested_off', manualOverride: true, absenceReason: typeInfo.reason, requestedOff: true, hours: existing.hours, start: existing.start, end: existing.end };
-      } else {
-        manualEdits[key] = { status: 'requested_off', manualOverride: true, absenceReason: typeInfo.reason, requestedOff: true };
-      }
-    } else {
-      manualEdits[key] = { status: typeId, manualOverride: true, absenceReason: typeInfo.reason };
-      delete assignmentReasonTags[key];
-      delete assignmentReasons[key];
-      delete assignmentReasonCodes[key];
-    }
-  });
-  var actionLabel = typeInfo.label;
-  addAuditEntry('Absence Added', absenceModalEmpId, null, null, actionLabel + ': ' + (dateStrs.length === 1 ? dateStrs[0] : dateStrs[0] + ' to ' + dateStrs[dateStrs.length - 1]));
-  save();
-  displaySchedule();
-  closeAbsenceModal();
-}
-
-function initAbsenceModal() {
-  document.getElementById('absenceConfirmBtn').onclick = applyAbsence;
-  document.getElementById('absenceCancelBtn').onclick = closeAbsenceModal;
-  document.getElementById('absenceModalOverlay').onclick = function(e) {
-    if (e.target === this) closeAbsenceModal();
-  };
-}
-
-function syncSickToSchedule(empId, isSick) {
-  syncStatusToSchedule(empId, isSick ? 'sick' : null);
-}
-
-function syncStatusToSchedule(empId, status) {
-  var start = getWeekStart();
-  var weekKey = dateToLocalYYYYMMDD(start);
-  var dateStrs = getDateStrsForWeek(weekKey);
-  var statusIds = ['sick', 'vacation', 'unpaid_vacation', 'floating_holiday', 'requested_off'];
-  var typeInfo = status ? ABSENCE_TYPES.find(function(a) { return a.id === status; }) : null;
-  dateStrs.forEach(function(dateStr) {
-    var key = empId + '_' + dateStr;
-    if (status) {
-      manualEdits[key] = { status: status, manualOverride: true, absenceReason: typeInfo ? typeInfo.reason : (status + ' (week)') };
-    } else {
-      var ed = manualEdits[key];
-      if (ed && statusIds.indexOf(ed.status) !== -1) delete manualEdits[key];
-    }
-  });
-}
-
-function toggleSick(id, checked){
-  const emp = employees.find(e=>e.id===id);
-  if (!emp) return;
-  emp.status = checked ? 'sick' : null;
-  if (!emp.status) delete emp.status;
-  syncStatusToSchedule(id, emp.status);
-  addAuditEntry('Sick Status Changed', id, null, !checked, checked);
-  save();
-  displaySchedule();
-}
-
-function toggleVacation(id, checked) {
-  const emp = employees.find(function(e) { return e.id === id; });
-  if (!emp) return;
-  emp.status = checked ? 'vacation' : null;
-  if (!emp.status) delete emp.status;
-  syncStatusToSchedule(id, emp.status);
-  addAuditEntry('Week Status Changed', id, null, emp.status ? null : 'vacation', emp.status || 'cleared');
-  save();
-  displaySchedule();
-}
-
-function toggleUnpaidVacation(id, checked) {
-  const emp = employees.find(function(e) { return e.id === id; });
-  if (!emp) return;
-  emp.status = checked ? 'unpaid_vacation' : null;
-  if (!emp.status) delete emp.status;
-  syncStatusToSchedule(id, emp.status);
-  addAuditEntry('Week Status Changed', id, null, emp.status ? null : 'unpaid_vacation', emp.status || 'cleared');
-  save();
-  displaySchedule();
-}
-
-function toggleFloatingHoliday(id, checked) {
-  const emp = employees.find(function(e) { return e.id === id; });
-  if (!emp) return;
-  emp.status = checked ? 'floating_holiday' : null;
-  if (!emp.status) delete emp.status;
-  syncStatusToSchedule(id, emp.status);
-  addAuditEntry('Week Status Changed', id, null, emp.status ? null : 'floating_holiday', emp.status || 'cleared');
-  save();
-  displaySchedule();
-}
-
-function toggleOff(id, checked) {
-  const emp = employees.find(function(e) { return e.id === id; });
-  if (!emp) return;
-  emp.status = checked ? 'requested_off' : null;
-  if (!emp.status) delete emp.status;
-  syncStatusToSchedule(id, emp.status);
-  addAuditEntry('Week Status Changed', id, null, emp.status ? null : 'off', emp.status || 'cleared');
-  save();
+  renderEmployees();
   displaySchedule();
 }
 
@@ -3877,11 +3514,6 @@ function viewEmployeeInfo(empId) {
   document.getElementById('employeeEditLaborPool').value = emp.laborPoolId || (laborPools[0] ? laborPools[0].id : '');
   document.getElementById('employeeEditPref').value = emp.pref || '';
   document.getElementById('employeeEditSeniority').value = getSeniorityForEmployee(emp) != null ? getSeniorityForEmployee(emp) : '';
-  document.getElementById('employeeEditSick').checked = (emp?.status === 'sick');
-  document.getElementById('employeeEditVacation').checked = (emp?.status === 'vacation');
-  document.getElementById('employeeEditUnpaidVacation').checked = (emp?.status === 'unpaid_vacation');
-  document.getElementById('employeeEditFloatingHoliday').checked = (emp?.status === 'floating_holiday');
-  document.getElementById('employeeEditOff').checked = (emp?.status === 'requested_off');
   var overlay = document.getElementById('employeeEditModalOverlay');
   overlay.classList.add('employee-edit-visible');
   setTimeout(function(){ var el = document.getElementById('employeeEditType'); if(el) el.focus(); }, 50);
@@ -3912,12 +3544,6 @@ function saveEmployeeEdit() {
   var poolEl = document.getElementById('employeeEditLaborPool');
   var prefEl = document.getElementById('employeeEditPref');
   var seniorityEl = document.getElementById('employeeEditSeniority');
-  var sickEl = document.getElementById('employeeEditSick');
-  var vacationEl = document.getElementById('employeeEditVacation');
-  var unpaidVacationEl = document.getElementById('employeeEditUnpaidVacation');
-  var floatingHolidayEl = document.getElementById('employeeEditFloatingHoliday');
-  var offEl = document.getElementById('employeeEditOff');
-  
   var poolId = poolEl && poolEl.value ? poolEl.value : emp.laborPoolId;
   if (!poolId) {
     alert('Please select a labor pool to continue.');
@@ -3934,7 +3560,6 @@ function saveEmployeeEdit() {
   var oldPoolId = emp.laborPoolId;
   var oldPref = emp.pref || '';
   var oldSeniority = getSeniorityForEmployee(emp);
-  var oldStatus = emp?.status ?? null;
   
   emp.type = typeEl.value;
   emp.laborPoolId = poolId;
@@ -3942,21 +3567,17 @@ function saveEmployeeEdit() {
   emp.seniorityByPool[poolId] = check.value;
   emp.seniority = check.value;
   emp.pref = prefEl.value || null;
-  emp.status = (sickEl && sickEl.checked) ? 'sick' : (vacationEl && vacationEl.checked) ? 'vacation' : (unpaidVacationEl && unpaidVacationEl.checked) ? 'unpaid_vacation' : (floatingHolidayEl && floatingHolidayEl.checked) ? 'floating_holiday' : (offEl && offEl.checked) ? 'requested_off' : null;
-  if (!emp.status) delete emp.status;
   
   var changes = [];
   if (oldType !== emp.type) changes.push('type ' + oldType + ' → ' + emp.type);
   if (oldPoolId !== emp.laborPoolId) changes.push('labor pool → ' + (getLaborPoolById(emp.laborPoolId) ? getLaborPoolById(emp.laborPoolId).name : emp.laborPoolId));
   if (oldPref !== (emp.pref || '')) changes.push('preference ' + (oldPref || 'none') + ' → ' + (emp.pref || 'none'));
   if (oldSeniority !== emp.seniority) changes.push('seniority ' + oldSeniority + ' → ' + emp.seniority);
-  if (oldStatus !== emp.status) changes.push('status ' + (oldStatus || 'none') + ' → ' + (emp.status || 'none'));
   
   if (changes.length) {
     addAuditEntry('Employee Updated', emp.id, null, changes.join('; '), emp.name);
   }
   
-  if (oldStatus !== emp.status) syncStatusToSchedule(emp.id, emp.status);
   save();
   renderEmployeesPoolSelector();
   renderEmployees();
@@ -4444,9 +4065,9 @@ var OVERRIDE_REASONS = [
 function getEligibleEmployeesForDate(dateStr) {
   return employees.filter(function(e) {
     if (!e || typeof e !== 'object') return true;
-    if (e.retired || e.status) return false;
-    var vk = e.id + '_' + dateStr;
-    var edit = manualEdits[vk];
+    if (e.retired) return false;
+    var key = e.id + '_' + dateStr;
+    var edit = manualEdits[key];
     if (edit && isFullAbsenceStatus(edit.status)) return false;
     return true;
   });
@@ -4519,18 +4140,21 @@ function applyOverrideToEdit(edit, reason) {
 }
 
 function editScheduleCell(empId, date){
-  // Check global lock first
+  if (currentAbsenceMode) {
+    var key = currentAbsenceMode.empId + "_" + date;
+    manualEdits[key] = { status: currentAbsenceMode.status, manualOverride: true };
+    save();
+    displaySchedule();
+    return;
+  }
   if(scheduleGlobalLock) {
     alert('Schedule is locked. Unlock it using the lock button above to make changes.');
     return;
   }
-  
-  // Check row lock
   if(lockedRows[empId]) {
     alert('This employee\'s row is locked. Click the lock icon next to their name to unlock and edit.');
     return;
   }
-  
   const key = empId + "_" + date;
   const emp = employees.find(e => e.id === empId);
   const ev = events.find(e => e.date === date);
@@ -5416,29 +5040,6 @@ function displaySchedule(){
       cell.className = 'clickable';
       cell.setAttribute('data-emp-id', emp.id);
       cell.setAttribute('data-date', dateStr);
-      var safeStatus = emp?.status ?? null;
-      if (safeStatus === 'sick') {
-        cell.classList.add('status-cell');
-        var sickLabelEl = document.createElement('div');
-        sickLabelEl.className = 'status-label';
-        sickLabelEl.textContent = 'SICK';
-        cell.appendChild(sickLabelEl);
-        row.appendChild(cell);
-        return;
-      }
-      if (safeStatus && isWeekLevelAbsenceStatus(safeStatus)) {
-        cell.innerHTML = '';
-        cell.classList.add('status-cell');
-        var weekStatusInfo = ABSENCE_TYPES.find(function(a) { return a.id === safeStatus; });
-        var statusLabelText = weekStatusInfo ? weekStatusInfo.label : (safeStatus === 'off' ? 'Off' : String(safeStatus).replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }));
-        var statusLabelEl = document.createElement('div');
-        statusLabelEl.className = 'status-label';
-        statusLabelEl.textContent = statusLabelText;
-        cell.appendChild(statusLabelEl);
-        cell.onclick = function() { editScheduleCell(emp.id, dateStr); };
-        row.appendChild(cell);
-        return;
-      }
       cell.ondragover = function(e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
@@ -5764,7 +5365,7 @@ function assignEmployeesToWeek(days) {
   var housemenPoolId = getHousemenPoolId();
   var serverPool = employees.filter(function(e) {
     if (!e || typeof e !== 'object') return false;
-    if (e.retired || e.status) return false;
+    if (e.retired) return false;
     if (cashierPoolId && e.laborPoolId === cashierPoolId) return false;
     if (housemenPoolId && e.laborPoolId === housemenPoolId) return false;
     return true;
@@ -5903,17 +5504,15 @@ function assignEmployeesToWeek(days) {
   
   function isEligibleForSlot(emp, item) {
     if (!emp || typeof emp !== 'object') return false;
-    if (emp.status) return false;
     var dateStr = item.dateStr;
     var slotStart = item.slot.start;
     var key = emp.id + "_" + dateStr;
     if (item.assignedTo !== null) return false;
     if (lockedCells[key] || lockedRows[emp.id]) return false;
-    var dateAbsence = manualEdits != null ? manualEdits[key] : null;
-    if (dateAbsence && isFullAbsenceStatus(dateAbsence.status)) return false;
-    var ed = manualEdits[key];
-    if (ed) {
-      if (ed.status !== 'requested_off' || (ed.hours || ed.start)) return false;
+    var edit = manualEdits[key];
+    if (edit && isFullAbsenceStatus(edit.status)) return false;
+    if (edit) {
+      if (edit.status !== 'requested_off' || (edit.hours || edit.start)) return false;
     }
     if (assignments[dateStr] && assignments[dateStr].indexOf(emp.id) !== -1) return false;
     if ((employeeHoursToday[dateStr][emp.id] || 0) + item.slot.hours > REGULAR_HOURS_MAX) return false;
@@ -6920,7 +6519,6 @@ function submitSupport(){
 /* INIT */
 try {
   initEmployeeEditModal();
-  initAbsenceModal();
   updateSeniorityPreFill();
   renderEmployees();
   renderEvents();
