@@ -3193,7 +3193,7 @@ function parseAndImportText(text) {
   renderEmployeesPoolSelector();
   renderEmployees();
   
-  alert(`âœ… Successfully imported ${imported} employees!${mode ? '\n\nAll previous employees were replaced.' : '\n\nSeniority has been rebalanced.'}`);
+  alert('\u2713 Successfully imported ' + imported + ' employees!' + (mode ? '\n\nAll previous employees were replaced.' : '\n\nSeniority has been rebalanced.'));
 }
 
 /* EXPORT FUNCTION */
@@ -3396,8 +3396,8 @@ function openDayPreferences(empId) {
   dayNames.forEach((name, index) => {
     var pref = emp.dayPreferences[index];
     var prefText = '(no preference)';
-    if (pref === true) prefText = 'âœ" PREFERS to work';
-    if (pref === false) prefText = 'âœ- PREFERS OFF';
+    if (pref === true) prefText = '\u2713 PREFERS to work';
+    if (pref === false) prefText = '\u2717 PREFERS OFF';
     dialog += index + '. ' + name.padEnd(10) + ' ' + prefText + '\n';
   });
   
@@ -3523,6 +3523,7 @@ function setMaxDaysPerWeek(empId, maxDays) {
   
   addAuditEntry('Max Days Changed', empId, null, `${oldValue} days/week`, `${maxDays} days/week`);
   save();
+  renderEmployees();
   
   console.log(`${emp.name} max days set to ${maxDays}/week`);
 }
