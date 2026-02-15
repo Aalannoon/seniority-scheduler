@@ -4273,6 +4273,8 @@ function editScheduleCell(empId, date){
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
     delete assignmentReasonCodes[key];
+    var weekKeyAbs = getWeekKey(getWeekStart());
+    saveWeeklyScheduleSnapshot(weekKeyAbs);
     addAuditEntry('Absence Added', empId, date, oldValue, 'Sick');
     save();
     displaySchedule();
@@ -4288,6 +4290,8 @@ function editScheduleCell(empId, date){
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
     delete assignmentReasonCodes[key];
+    weekKeyAbs = getWeekKey(getWeekStart());
+    saveWeeklyScheduleSnapshot(weekKeyAbs);
     addAuditEntry('Absence Added', empId, date, oldValue, 'Vacation');
     save();
     displaySchedule();
@@ -4302,6 +4306,8 @@ function editScheduleCell(empId, date){
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
     delete assignmentReasonCodes[key];
+    weekKeyAbs = getWeekKey(getWeekStart());
+    saveWeeklyScheduleSnapshot(weekKeyAbs);
     addAuditEntry('Absence Added', empId, date, oldValue, 'Floating Holiday');
     save();
     displaySchedule();
@@ -4316,6 +4322,8 @@ function editScheduleCell(empId, date){
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
     delete assignmentReasonCodes[key];
+    weekKeyAbs = getWeekKey(getWeekStart());
+    saveWeeklyScheduleSnapshot(weekKeyAbs);
     addAuditEntry('Absence Added', empId, date, oldValue, 'Unpaid Vacation');
     save();
     displaySchedule();
@@ -4330,6 +4338,8 @@ function editScheduleCell(empId, date){
     delete assignmentReasonTags[key];
     delete assignmentReasons[key];
     delete assignmentReasonCodes[key];
+    weekKeyAbs = getWeekKey(getWeekStart());
+    saveWeeklyScheduleSnapshot(weekKeyAbs);
     addAuditEntry('Absence Added', empId, date, oldValue, 'Request Off');
     save();
     displaySchedule();
