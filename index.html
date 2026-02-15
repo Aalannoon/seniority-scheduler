@@ -3476,6 +3476,25 @@ function onStatusCheckboxClick(emp, statusName) {
     emp.status = null;
   } else {
     emp.status = statusName;
+    // Clear any existing shifts on days they are now absent (e.g. vacation = all days) so they don't stay scheduled on weekend
+    var start = getWeekStart();
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(start);
+      d.setDate(start.getDate() + i);
+      var dateStr = iso(d);
+      var key = emp.id + '_' + dateStr;
+      if (lockedCells[key] || lockedRows[emp.id]) continue;
+      if (typeof isAbsentOnDate !== 'function' || !isAbsentOnDate(emp, dateStr)) continue;
+      var ed = manualEdits[key];
+      if (ed && (ed.hours || ed.start)) {
+        delete manualEdits[key];
+        delete assignmentReasonTags[key];
+        delete assignmentReasons[key];
+        delete assignmentReasonCodes[key];
+      }
+    }
+    var weekKey = getWeekKey(start);
+    saveWeeklyScheduleSnapshot(weekKey);
   }
   save();
   renderEmployees();
@@ -4540,6 +4559,26 @@ function generateSchedule(){
     return d;
   });
   
+  var weekKeyGen = getWeekKey(start);
+  // Clear any existing shifts on days when the employee is absent (e.g. vacation) so they don't stay scheduled on weekend
+  employees.filter(function(e) { return e && typeof e === 'object' && !e.retired; }).forEach(function(emp) {
+    days.forEach(function(d) {
+      var dateStr = iso(d);
+      var key = emp.id + "_" + dateStr;
+      if (lockedCells[key] || lockedRows[emp.id]) return;
+      if (typeof isAbsentOnDate !== 'function' || !isAbsentOnDate(emp, dateStr)) return;
+      var ed = manualEdits[key];
+      if (!ed || (ed.status && isFullAbsenceStatus(ed.status) && !ed.hours && !ed.start)) return;
+      if (ed.hours || ed.start) {
+        delete manualEdits[key];
+        delete assignmentReasonTags[key];
+        delete assignmentReasons[key];
+        delete assignmentReasonCodes[key];
+      }
+    });
+  });
+  saveWeeklyScheduleSnapshot(weekKeyGen);
+  
   let shiftsCreated = 0;
   let skippedDueToLimit = 0;
   let understaffedEvents = []; // Track events that couldn't be fully staffed
@@ -5445,6 +5484,7 @@ function assignEmployeesToWeek(days) {
     days.forEach(function(d) {
       var dateStr = iso(d);
       var key = e.id + "_" + dateStr;
+      if (typeof isAbsentOnDate === 'function' && isAbsentOnDate(e, dateStr)) return; // don't load shifts for absent employees (e.g. vacation)
       if ((!lockedCells[key] && !lockedRows[e.id]) || !manualEdits[key]) return;
       var ed = manualEdits[key];
       if (ed && isFullAbsenceStatus(ed.status)) return;
