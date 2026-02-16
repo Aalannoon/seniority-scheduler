@@ -2257,7 +2257,7 @@ body.light-mode .email-cell-input { background: #fff; color: #1a1f26; border-col
 </div>
 
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+  <!-- Cloudflare email-decode.min.js removed: 404 when not behind Cloudflare -->
   <script src="absence-utils.js"></script>
   <script>
 let employees = JSON.parse(localStorage.getItem("employees") || "[]");
@@ -4722,7 +4722,7 @@ function duplicateEvent(id) {
   save();
   renderEvents();
   var liveEl = document.getElementById('eventsLiveRegion');
-  if (liveEl) liveEl.textContent = 'Event duplicated as “‘ + (copy.name || '').replace(/"/g, "'") + '”.';
+  if (liveEl) liveEl.textContent = 'Event duplicated: ' + (copy.name || '').replace(/"/g, "'");
   setTimeout(function() {
     var tbl = document.getElementById('eventsTable');
     var row = tbl ? tbl.querySelector('tr[data-event-id="' + copy.id + '"]') : null;
